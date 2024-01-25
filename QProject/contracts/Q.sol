@@ -57,6 +57,9 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
      */
     uint256 public currentCycleReward;
 
+    uint256 public currentCycleRewardForUsers;
+
+    uint256 public currentCycleRewardForAIBuilders;
     /**
      * Reward token amount allocated for the previous cycle.
      */
@@ -186,7 +189,7 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
 
     mapping(uint256 => uint256) public cycleInteraction;
 
-    mapping()
+    mapping(address => uint256) public aiMinerRank;
     /**
      * @dev Emitted when `account` claims an amount of `fees` in native token
      * through {claimFees} in `cycle`.
@@ -252,17 +255,7 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
      * The change is sent back to the caller.
      * 
      */
-    modifier gasWrapper(uint256 batchNumber) {
-        // uint256 startGas = gasleft();
-        // _;
-        // uint256 discount = (batchNumber * (MAX_BPS - 5 * batchNumber));
-        // uint256 protocolFee = ((startGas - gasleft() + 39400) * tx.gasprice * discount) / MAX_BPS;
-        // require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
-        // totalNumberOfBatchesBurned += batchNumber;
-        // cycleTotalBatchesBurned[currentCycle] += batchNumber;
-        // accCycleBatchesBurned[_msgSender()] +=  batchNumber;
-        // cycleAccruedFees[currentCycle] += protocolFee;
-        // sendViaCall(payable(msg.sender), msg.value - protocolFee);
+    modifier gasWrapper(uint256 batchNumber, address aiMiner) {
         uint256 protocolFee;
         if(cycleInteraction[getCurrentCycle()] == 0) {
             cycleInteraction[getCurrentCycle()] = 1;
@@ -274,9 +267,10 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
 
         require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
         totalNumberOfBatchesBurned += batchNumber;
-        cycleTotalBatchesBurned[currentCycle] += batchNumber;
-        accCycleBatchesBurned[_msgSender()] +=  batchNumber;
-        cycleAccruedFees[currentCycle] += protocolFee * 50 / MAX_BPS;
+        cycleTotalBatchesBurned[getCurrentCycle()] += batchNumber;
+        accCycleBatchesBurned[_msgSender()] +=  batchNumber * 1 ether * 95 / MAX_BPS;
+        accCycleBatchesBurned[aiMiner] +=  batchNumber * 1 ether * 5  / MAX_BPS;
+        cycleAccruedFees[getCurrentCycle()] += protocolFee * 50 / MAX_BPS;
         sendViaCall(payable(devAddress), protocolFee * 5 / MAX_BPS);
         sendViaCall(payable(dxnBuyAndBurn), protocolFee * 5 / MAX_BPS);
         sendViaCall(payable(qBuyAndBurn), protocolFee * 40 / MAX_BPS);
@@ -292,25 +286,10 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
         qBuyAndBurn = _qBuyAndBurn;
         qToken = new QERC20();
         i_initialTimestamp = block.timestamp;
-        i_periodDuration = 1 days;
+        i_periodDuration = 5 minutes;
         currentCycleReward = 10000 * 1e18;
         summedCycleStakes[0] = 10000 * 1e18;
         rewardPerCycle[0] = 10000 * 1e18;
-    }
-
-    // IBurnRedeemable IMPLEMENTATION
-
-    /**
-        @dev implements IBurnRedeemable interface for burning XEN and completing update for state
-     */
-    function onTokenBurned(address user, uint256 amount) external{
-      //  require(msg.sender == address(xen), "DBXen: illegal callback caller");
-        calculateCycle();
-        updateCycleFeesPerStakeSummed();
-        setUpNewCycle();
-        updateStats(user);
-        lastActiveCycle[user] = currentCycle;
-        emit Burn(user, amount);
     }
 
     /**
@@ -319,18 +298,22 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
      * @param batchNumber number of batches
      */
     function burnBatch(
+        address aiMiner,
         uint256 batchNumber
     )
         external
         payable
         nonReentrant()
-        gasWrapper(batchNumber)
+        gasWrapper(batchNumber, aiMiner)
     {
         require(batchNumber <= 100, "DBXen: maxim batch number is 100");
         require(batchNumber > 0, "DBXen: min batch number is 1");
-        //require(xen.balanceOf(msg.sender) >= batchNumber * XEN_BATCH_AMOUNT, "DBXen: not enough tokens for burn");
-
-       // IBurnableToken(xen).burn(msg.sender , batchNumber * XEN_BATCH_AMOUNT);
+        calculateCycle();
+        updateCycleFeesPerStakeSummed();
+        setUpNewCycle();
+        updateStats(_msgSender());
+        updateStats(aiMiner);
+        lastActiveCycle[_msgSender()] = currentCycle;
     }
 
     /**
@@ -539,8 +522,8 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
             currentCycle > lastActiveCycle[account] &&	
             accCycleBatchesBurned[account] != 0	
         ) {	
-            uint256 lastCycleAccReward = (accCycleBatchesBurned[account] * rewardPerCycle[lastActiveCycle[account]]) / 	
-                cycleTotalBatchesBurned[lastActiveCycle[account]];	
+            uint256 lastCycleAccReward = ((accCycleBatchesBurned[account] * rewardPerCycle[lastActiveCycle[account]]) / 	
+                cycleTotalBatchesBurned[lastActiveCycle[account]]) / 1 ether;
             accRewards[account] += lastCycleAccReward;	
             accCycleBatchesBurned[account] = 0;
         }
