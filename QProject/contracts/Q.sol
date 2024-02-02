@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./QERC20.sol";
 
-contract DBXen is ERC2771Context, ReentrancyGuard {
+contract Q is ERC2771Context, ReentrancyGuard {
     using SafeERC20 for QERC20;
 
     address public devAddress;
@@ -118,7 +118,7 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
      * that updates its stats.
      */
     mapping(address => uint256) public accCycleBatchesBurned;
-
+    
     /**
      * The total amount of batches all accounts have burned per cycle.
      */
@@ -255,26 +255,25 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
      * The change is sent back to the caller.
      * 
      */
-    modifier gasWrapper(uint256 batchNumber, address aiMiner) {
+    function gasWrapper(uint256 batchNumber, address aiMiner) public payable {
         uint256 protocolFee;
-        if(cycleInteraction[getCurrentCycle()] == 0) {
-            cycleInteraction[getCurrentCycle()] = 1;
+        if(cycleInteraction[currentCycle] == 0) {
+            cycleInteraction[currentCycle] = 1;
             protocolFee = 0.01 ether * batchNumber;
         } else {
-            protocolFee = 0.01 ether * batchNumber * cycleInteraction[getCurrentCycle()] * MAX_BPS_101 / MAX_BPS;
-            cycleInteraction[getCurrentCycle()]++;
+            protocolFee = 0.01 ether * batchNumber * cycleInteraction[currentCycle] * MAX_BPS_101 / MAX_BPS;
+            cycleInteraction[currentCycle]++;
         }
 
         require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
         totalNumberOfBatchesBurned += batchNumber;
-        cycleTotalBatchesBurned[getCurrentCycle()] += batchNumber;
+        cycleTotalBatchesBurned[currentCycle] += batchNumber * 1 ether;
         accCycleBatchesBurned[_msgSender()] +=  batchNumber * 1 ether * 95 / MAX_BPS;
         accCycleBatchesBurned[aiMiner] +=  batchNumber * 1 ether * 5  / MAX_BPS;
-        cycleAccruedFees[getCurrentCycle()] += protocolFee * 50 / MAX_BPS;
+        cycleAccruedFees[currentCycle] += protocolFee * 50 / MAX_BPS;
         sendViaCall(payable(devAddress), protocolFee * 5 / MAX_BPS);
         sendViaCall(payable(dxnBuyAndBurn), protocolFee * 5 / MAX_BPS);
         sendViaCall(payable(qBuyAndBurn), protocolFee * 40 / MAX_BPS);
-        _;
     }
 
     /**
@@ -304,7 +303,6 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
         external
         payable
         nonReentrant()
-        gasWrapper(batchNumber, aiMiner)
     {
         require(batchNumber <= 100, "DBXen: maxim batch number is 100");
         require(batchNumber > 0, "DBXen: min batch number is 1");
@@ -313,7 +311,9 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
         setUpNewCycle();
         updateStats(_msgSender());
         updateStats(aiMiner);
+        gasWrapper(batchNumber, aiMiner);
         lastActiveCycle[_msgSender()] = currentCycle;
+        lastActiveCycle[aiMiner] = currentCycle;
     }
 
     /**
@@ -523,7 +523,7 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
             accCycleBatchesBurned[account] != 0	
         ) {	
             uint256 lastCycleAccReward = ((accCycleBatchesBurned[account] * rewardPerCycle[lastActiveCycle[account]]) / 	
-                cycleTotalBatchesBurned[lastActiveCycle[account]]) / 1 ether;
+                cycleTotalBatchesBurned[lastActiveCycle[account]]);
             accRewards[account] += lastCycleAccReward;	
             accCycleBatchesBurned[account] = 0;
         }
@@ -606,5 +606,7 @@ contract DBXen is ERC2771Context, ReentrancyGuard {
         (bool sent, ) = to.call{value: amount}("");
         require(sent, "DBXen: failed to send amount");
     }
+
+    receive() external payable {}
 
 }
