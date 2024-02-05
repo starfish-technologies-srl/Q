@@ -264,8 +264,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
             protocolFee = 0.01 ether * batchNumber * cycleInteraction[currentCycle] * MAX_BPS_101 / MAX_BPS;
             cycleInteraction[currentCycle]++;
         }
-
         require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
+        if(msg.value > protocolFee) {
+             sendViaCall(payable(msg.sender), msg.value - protocolFee);
+        }
         totalNumberOfBatchesBurned += batchNumber;
         cycleTotalBatchesBurned[currentCycle] += batchNumber * 1 ether;
         accCycleBatchesBurned[_msgSender()] +=  batchNumber * 1 ether * 95 / MAX_BPS;
