@@ -3,7 +3,7 @@ const { BigNumber } = require("ethers");
 const { commify } = require("ethers/lib/utils");
 const { ethers } = require("hardhat");
 
-describe("Test claim fee functionality", async function () {
+describe("Test reward distribution functionality", async function () {
   let QContract;
   let forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, ai, deployer, ai2;
   beforeEach("Set enviroment", async () => {
@@ -142,7 +142,7 @@ describe("Test claim fee functionality", async function () {
       QContract.address
     );
 
-    let fee = (0.01 * 1 * 100 * 101) / 100;
+    let fee = (0.01 * 100 * (1 + 100)) / 100;
     let protocolFee2 = ethers.utils.parseEther(fee.toString());
 
     await QContract.burnBatch(ai.address, 100, {
@@ -200,7 +200,7 @@ describe("Test claim fee functionality", async function () {
     let contractBalanceAfterSecondTransaction =
       await ethers.provider.getBalance(QContract.address);
 
-    let fee2 = (0.01 * 2 * 75 * 101) / 100;
+    let fee2 = (0.01 * 75 * (2 + 100)) / 100;
     let protocolFee3 = ethers.utils.parseEther(fee2.toString());
 
     await QContract.burnBatch(ai.address, 75, {
@@ -259,7 +259,7 @@ describe("Test claim fee functionality", async function () {
       BigNumber.from(contractBalance).add(BigNumber.from(fiftyPercent))
     );
 
-    let fee = (0.01 * 1 * 75 * 101) / 100;
+    let fee = (0.01 * 1 * 75 * (100 + 1)) / 100;
     let protocolFee2 = ethers.utils.parseEther(fee.toString());
     let contractBalance2 = await ethers.provider.getBalance(QContract.address);
     await QContract.burnBatch(ai.address, 75, {
@@ -273,7 +273,7 @@ describe("Test claim fee functionality", async function () {
     expect(await ethers.provider.getBalance(QContract.address)).to.equal(
       BigNumber.from(contractBalance2).add(BigNumber.from(fiftyPercent2))
     );
-    let fee2 = (0.01 * 2 * 55 * 101) / 100;
+    let fee2 = (0.01 * 55 * (2 + 100)) / 100;
     let protocolFee3 = ethers.utils.parseEther(fee2.toString());
     let contractBalance3 = await ethers.provider.getBalance(QContract.address);
     await QContract.burnBatch(ai.address, 55, {
@@ -289,7 +289,7 @@ describe("Test claim fee functionality", async function () {
     );
   });
 
-  it.only("Test protocol fee formula in for loop", async () => {
+  it("Test protocol fee formula in for loop", async () => {
     let protocolFee = ethers.utils.parseEther("1");
     let contractBalance = await ethers.provider.getBalance(QContract.address);
     await QContract.burnBatch(ai.address, 100, {
@@ -306,7 +306,9 @@ describe("Test claim fee functionality", async function () {
 
     let batchNumber = 50;
     for (let i = 1; i <= 5; i++) {
-      let fee = ((ethers.utils.parseEther("0.01") * i * batchNumber * 101) / 100);
+      let fee =
+        (ethers.utils.parseEther("0.01") * batchNumber * (i + 100)) /
+        100;
       let contractBalance2 = await ethers.provider.getBalance(
         QContract.address
       );

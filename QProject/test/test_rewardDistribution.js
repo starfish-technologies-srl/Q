@@ -40,7 +40,7 @@ describe("Test claim fee functionality", async function () {
     );
 
     let protocolFee =
-      (0.01 * 100 * Number(actualNumberOfInteraction) * 101) / 100;
+      (0.01 * 100 * (Number(actualNumberOfInteraction) + 100)) / 100;
 
     await QContract.burnBatch(ai.address, 100, {
       value: ethers.utils.parseEther(protocolFee.toString()),
