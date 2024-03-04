@@ -57,9 +57,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
      */
     uint256 public currentCycleReward;
 
-    uint256 public currentCycleRewardForUsers;
-
-    uint256 public currentCycleRewardForAIBuilders;
     /**
      * Reward token amount allocated for the previous cycle.
      */
