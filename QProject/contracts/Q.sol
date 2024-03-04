@@ -190,6 +190,12 @@ contract Q is ERC2771Context, ReentrancyGuard {
     mapping(uint256 => uint256) public cycleInteraction;
 
     mapping(address => uint256) public aiMinerRank;
+
+    mapping(uint256 => uint256) public aiMinerCycleInteractions;
+
+    mapping(uint256 => uint256) public aiMinerTotalCycleInteractions;
+
+    mapping(address => address) public aiMinerPaymentContract;
     /**
      * @dev Emitted when `account` claims an amount of `fees` in native token
      * through {claimFees} in `cycle`.
@@ -256,26 +262,25 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * 
      */
     function gasWrapper(uint256 batchNumber, address aiMiner) public payable {
-        uint256 protocolFee;
-        if(cycleInteraction[currentCycle] == 0) {
-            cycleInteraction[currentCycle] = 1;
-            protocolFee = 0.01 ether * batchNumber;
-        } else {
-            protocolFee = (0.01 ether * batchNumber * (MAX_BPS  + cycleInteraction[currentCycle])) / MAX_BPS;
-            cycleInteraction[currentCycle]++;
-        }
+        uint256 protocolFee = calculateProtocolFee(batchNumber);        
         require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
+
+        cycleInteraction[currentCycle]++;
+
+        totalNumberOfBatchesBurned += batchNumber;
+
+        uint256 batchWeight = batchNumber * getAIMinerRankMultiplier(currentCycle, aiMiner);
+
+        cycleTotalBatchesBurned[currentCycle] += batchWeight * 100;
+        accCycleBatchesBurned[_msgSender()] += batchWeight * 95;
+        accCycleBatchesBurned[aiMiner] += batchWeight * 5;
+        cycleAccruedFees[currentCycle] += protocolFee * 50 / MAX_BPS;
+
+        distributeProtocolFee(protocolFee);
+
         if(msg.value > protocolFee) {
              sendViaCall(payable(msg.sender), msg.value - protocolFee);
         }
-        totalNumberOfBatchesBurned += batchNumber;
-        cycleTotalBatchesBurned[currentCycle] += batchNumber * 1 ether;
-        accCycleBatchesBurned[_msgSender()] +=  batchNumber * 1 ether * 95 / MAX_BPS;
-        accCycleBatchesBurned[aiMiner] +=  batchNumber * 1 ether * 5  / MAX_BPS;
-        cycleAccruedFees[currentCycle] += protocolFee * 50 / MAX_BPS;
-        sendViaCall(payable(devAddress), protocolFee * 5 / MAX_BPS);
-        sendViaCall(payable(dxnBuyAndBurn), protocolFee * 5 / MAX_BPS);
-        sendViaCall(payable(qBuyAndBurn), protocolFee * 40 / MAX_BPS);
     }
 
     /**
@@ -377,6 +382,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         updateCycleFeesPerStakeSummed();
         updateStats(_msgSender());
         require(amount > 0, "DBXen: amount is zero");
+        require(currentCycleMem == currentStartedCycle, "DBXeNFT: Only stake during active cycle");
         pendingStake += amount;
         uint256 cycleToSet = currentCycle + 1;
 
@@ -439,6 +445,24 @@ contract Q is ERC2771Context, ReentrancyGuard {
      */
     function getCurrentCycle() public view returns (uint256) {
         return (block.timestamp - i_initialTimestamp) / i_periodDuration;
+    }
+
+    function getAIMinerRankMultiplier(uint256 cycle, address miner) internal returns(uint256 multiplier) {
+        if(aiMinerPaymentContract(miner) == address(0) || cycle == 0) {
+            multiplier = 1;
+        } 
+    }
+
+    function calculateProtocolFee(uint256 batchNumber) internal returns(uint256 protocolFee) {
+        protocolFee = 
+            (0.01 ether * batchNumber * 
+            (MAX_BPS  + cycleInteraction[currentCycle])) / MAX_BPS;
+    }
+
+    function distributeProtocolFee(uint256 protocolFee) internal {
+        sendViaCall(payable(devAddress), protocolFee * 5 / MAX_BPS);
+        sendViaCall(payable(dxnBuyAndBurn), protocolFee * 5 / MAX_BPS);
+        sendViaCall(payable(qBuyAndBurn), protocolFee * 40 / MAX_BPS);
     }
 
     /**
