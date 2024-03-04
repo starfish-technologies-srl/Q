@@ -188,11 +188,17 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
     mapping(address => uint256) public aiMinerRank;
 
-    mapping(uint256 => uint256) public aiMinerCycleInteractions;
-
     mapping(uint256 => uint256) public aiMinerTotalCycleInteractions;
 
     mapping(address => address) public aiMinerPaymentContract;
+
+    mapping(address => uint256) public aiMinerLastActiveCycle;
+
+    mapping(address => uint256) public aiMinerPreviousActiveCycle;
+
+    mapping(address => mapping(address => uint256)) public aiMinerCycleInteractions;
+
+    mapping(uint256 => uint256) public totalMinersInteractionsPerCycle;
     /**
      * @dev Emitted when `account` claims an amount of `fees` in native token
      * through {claimFees} in `cycle`.
@@ -266,8 +272,16 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
         totalNumberOfBatchesBurned += batchNumber;
 
-        uint256 batchWeight = batchNumber * getAIMinerRankMultiplier(currentCycle, aiMiner);
+        //Change with Payment contract logic!
+        if (aiMinerLastActiveCycle[aiMiner] != currentCycle) {
+            aiMinerPreviousActiveCycle[aiMiner] = aiMinerLastActiveCycle[aiMiner];
+            aiMinerLastActiveCycle[aiMiner] = currentCycle;
+        }
+        aiMinerCycleInteractions[aiMiner][currentCycle] = batchNumber;
+        totalMinersInteractionsPerCycle[currentCycle] += batchNumber;
 
+        uint256 batchWeight = batchNumber * getAIMinerRankMultiplier(currentCycle, aiMiner);
+     
         cycleTotalBatchesBurned[currentCycle] += batchWeight * 100;
         accCycleBatchesBurned[_msgSender()] += batchWeight * 95;
         accCycleBatchesBurned[aiMiner] += batchWeight * 5;
@@ -445,9 +459,15 @@ contract Q is ERC2771Context, ReentrancyGuard {
     }
 
     function getAIMinerRankMultiplier(uint256 cycle, address miner) internal returns(uint256 multiplier) {
-        if(aiMinerPaymentContract(miner) == address(0) || cycle == 0) {
+        if(aiMinerPaymentContract(miner) == address(0)) {
             multiplier = 1;
         } 
+        if(aiMinerPreviousActiveCycle[miner] == 0){
+            multiplier = 1;
+        }
+        if(aiMinerPreviousActiveCycle[miner] != 0){
+            multiplier = aiMinerCycleInteractions[miner][aiMinerPreviousActiveCycle[miner]];
+        }
     }
 
     function calculateProtocolFee(uint256 batchNumber) internal returns(uint256 protocolFee) {
@@ -546,7 +566,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
             accCycleBatchesBurned[account] != 0	
         ) {	
             uint256 lastCycleAccReward = ((accCycleBatchesBurned[account] * rewardPerCycle[lastActiveCycle[account]]) / 	
-                cycleTotalBatchesBurned[lastActiveCycle[account]]);
+                (cycleTotalBatchesBurned[lastActiveCycle[account]]  * totalMinersInteractionsPerCycle[lastActiveCycle[account]]));
             accRewards[account] += lastCycleAccReward;	
             accCycleBatchesBurned[account] = 0;
         }
