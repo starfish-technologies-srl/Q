@@ -279,6 +279,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         dxnBuyAndBurn = _dxnBuyAndBurn;
         qBuyAndBurn = _qBuyAndBurn;
         qToken = new QERC20();
+        qToken.mintReward(msg.sender, 10000 * 1e18);
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 5 minutes;
         currentCycleReward = 10000 * 1e18;
