@@ -334,6 +334,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
     }
 
     function registerPaymentContract() external {
+        //TO DO => 0.2 percent
         aiMinerPaymentContract[msg.sender] = new QPayment();
     }
 
