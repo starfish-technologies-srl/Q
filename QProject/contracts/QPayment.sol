@@ -3,13 +3,9 @@ pragma solidity ^0.8.23;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract QPayment is Ownable {
-    address public QMain;
-
     uint256 public startTime;
 
     uint256 public endTime;
-
-    uint256 public currentCycle;
 
     uint256 public cycleDuration;
 
@@ -22,11 +18,10 @@ contract QPayment is Ownable {
     mapping(uint256 => uint256) public feePerCycle;
 
     constructor() Ownable(msg.sender) {
-        QMain = msg.sender;
         startTime = block.timestamp;
         endTime = startTime + 3 days;
         cycleDuration = 24 hours;
-        feePerCycle[0] = 5 ether;
+        feePerCycle[0] = 5 ether; 
         feePerCycle[1] = 6 ether;
         feePerCycle[2] = 7 ether;
     }
@@ -58,10 +53,14 @@ contract QPayment is Ownable {
     }
 
     function setQAddress(address _qContractAddress) public onlyOwner() {
+        require(_qContractAddress != address(0),"QPayment: You cannot set address 0!");
         qContractAddress = _qContractAddress;
     }
 
     function transferToQ(uint256 dayNumber) public onlyOwner() {
+        require(qContractAddress != address(0),"QPayment: You must set QContract adress before!");
+        require(dayNumber >= 0,"QPayment: Day number must be >= 0!");
+        require(dayNumber <= 2,"QPayment: Day number must be <= 2!");
         sendViaCall(payable(qContractAddress), totalAmountPerDay[dayNumber]);
         totalAmountPerDay[dayNumber] = 0;
     }
@@ -71,4 +70,7 @@ contract QPayment is Ownable {
         require(sent, "QPayment: failed to send amount");
     }
 
+    function emergencyWithdraw() public onlyOwner() {
+        sendViaCall(payable(msg.sender), address(this).balance);
+    }
 }
