@@ -45,11 +45,11 @@ contract QPayment is Ownable {
 
         if (msg.value > fee) {
             sendViaCall(payable(msg.sender), msg.value - fee);
-            aiRegisterFee[aiAddress] = msg.value - fee;
-            totalAmountPerDay[calculateCurrentCycle()] += msg.value - fee;
+            aiRegisterFee[aiAddress] += fee;
+            totalAmountPerDay[calculateCurrentCycle()] += fee;
         } else {
             totalAmountPerDay[calculateCurrentCycle()] += msg.value;
-            aiRegisterFee[aiAddress] = msg.value - fee;
+            aiRegisterFee[aiAddress] += msg.value;
         }
     }
 
