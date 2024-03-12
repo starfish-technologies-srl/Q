@@ -1,26 +1,37 @@
 pragma solidity ^0.8.23;
+import "./Q.sol";
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+contract QPayment {
+    address public contractOwner;
 
-contract QPayment is Ownable {
     uint256 public startTime;
 
     uint256 public endTime;
 
     uint256 public cycleDuration;
 
-    address public qContractAddress;
+    uint256 public constant MAX_BPS = 100;
 
     mapping(address => uint256) public aiRegisterFee;
 
-    mapping(uint256 => uint256) public totalAmountPerDay;
-
     mapping(uint256 => uint256) public feePerCycle;
 
-    constructor() Ownable(msg.sender) {
+    address constant forwarder;
+
+    address constant devAddress;
+
+    address constant dxnBuyAndBurn;
+
+    address constant qBuyAndBurn;
+
+    event AIRegisterData(address indexed AIOwner, address indexed AIAddress, uint256 fee);
+
+    event QDeployment(address indexed QContractAddress, address indexed deployer, uint256 amountSentToQ, uint256 amountSentToDeployer);
+
+    constructor()  {
         startTime = block.timestamp;
-        endTime = startTime + 3 days;
-        cycleDuration = 24 hours;
+        endTime = startTime + 3 minutes;
+        cycleDuration = 1 minutes;
         feePerCycle[0] = 5 ether; 
         feePerCycle[1] = 6 ether;
         feePerCycle[2] = 7 ether;
@@ -29,40 +40,39 @@ contract QPayment is Ownable {
     function AIRegister(address aiAddress) external payable {
         require(
             block.timestamp >= startTime,
-            "QPayment: You try to pay before starting period"
+            "QPayment: You try to pay before starting period!"
         );
-        require(block.timestamp <= endTime, "QPayment: Payment time has ended");
+        require(block.timestamp <= endTime, "QPayment: Payment time has ended!");
         uint256 fee = feePerCycle[calculateCurrentCycle()];
         require(
             msg.value >= fee,
-            "QPayment: The registration fee sent to the contract is insufficient"
+            "QPayment: The registration fee sent to the contract is insufficient!"
         );
+        require(aiRegisterFee[aiAddress] == 0, "QPayment: AI address has already been registered!");
 
         if (msg.value > fee) {
             sendViaCall(payable(msg.sender), msg.value - fee);
-            aiRegisterFee[aiAddress] += fee;
-            totalAmountPerDay[calculateCurrentCycle()] += fee;
+            aiRegisterFee[aiAddress] = fee;
         } else {
-            totalAmountPerDay[calculateCurrentCycle()] += msg.value;
-            aiRegisterFee[aiAddress] += msg.value;
+            aiRegisterFee[aiAddress] = msg.value;
         }
+
+        emit AIRegisterData(msg.sender, aiAddress, fee);
     }
 
     function calculateCurrentCycle() public returns (uint256) {
         return (block.timestamp - startTime) / cycleDuration;
     }
 
-    function setQAddress(address _qContractAddress) public onlyOwner() {
-        require(_qContractAddress != address(0),"QPayment: You cannot set address 0!");
-        qContractAddress = _qContractAddress;
-    }
+    function deployQContract() public returns(address QContractAddress) {
+        require(block.timestamp > endTime,"QPayment: Cannot send balance!");
+        uint256 userPercent = address(this).balance * 10 / MAX_BPS;
+        uint256 contractPercent = address(this).balance * 90 / MAX_BPS;
+        QContractAddress = new Q(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn);
+        sendViaCall(payable(msg.sender), userPercent);
+        sendViaCall(payable(QContractAddress), contractPercent);
 
-    function transferToQ(uint256 dayNumber) public onlyOwner() {
-        require(qContractAddress != address(0),"QPayment: You must set QContract adress before!");
-        require(dayNumber >= 0,"QPayment: Day number must be >= 0!");
-        require(dayNumber <= 2,"QPayment: Day number must be <= 2!");
-        sendViaCall(payable(qContractAddress), totalAmountPerDay[dayNumber]);
-        totalAmountPerDay[dayNumber] = 0;
+        emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent, block.timestamp);
     }
 
     function sendViaCall(address payable to, uint256 amount) internal {
@@ -70,7 +80,4 @@ contract QPayment is Ownable {
         require(sent, "QPayment: failed to send amount");
     }
 
-    function emergencyWithdraw() public onlyOwner() {
-        sendViaCall(payable(msg.sender), address(this).balance);
-    }
 }
