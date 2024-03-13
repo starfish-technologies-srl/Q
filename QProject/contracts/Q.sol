@@ -5,12 +5,13 @@ import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./QERC20.sol";
-import "./QPayment.sol";
 
 contract Q is ERC2771Context, ReentrancyGuard {
     using SafeERC20 for QERC20;
 
-    address public devAddress;
+    address public marketingAddress;
+
+    address public maintenanceAddress;
 
     address public dxnBuyAndBurn;
 
@@ -20,6 +21,22 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * Initialized in constructor.
      */
     QERC20 public qToken;
+
+    uint256 public constant MINER_ALLOCATION = 70;
+
+    uint256 public constant QBUYBURN_ALLOCATION = 25;
+
+    uint256 public constant MARKETING_ALLOCATION = 2;
+
+    uint256 public constant MAINTENANCE_ALLOCATION = 2;
+
+    uint256 public constant DXNBUYBURN_ALLOCATION = 1;
+
+    uint256 public constant BURN_DIMINISHER = 10020;
+
+    uint256 public constant LATE_BID = 1001;
+
+    uint256 public constant LATE_BID_MAX = 1000;
 
     /**
      * Basis points representation of 100 percent.
@@ -105,10 +122,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
      */
     uint256 public pendingFees;
 
-      /**
-     * Total amount of batches burned
-     */
-    uint256 public totalNumberOfBatchesBurned;
+    uint256 public currentBurnDecrease;
 
     /**
      * The amount of batches an account has burned.
@@ -187,19 +201,15 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
     mapping(uint256 => uint256) public cycleInteraction;
 
-    mapping(address => uint256) public aiMinerRank;
+    mapping(address => bool) public isAIMinerRegistered;
 
-    mapping(uint256 => uint256) public aiMinerCycleInteractions;
+    mapping(address => mapping(uint256 => uint256)) public aiMinerBalancePerCycle;
 
-    mapping(uint256 => uint256) public aiMinerTotalCycleInteractions;
-
-    mapping(address => address) public aiMinerPaymentContract;
-
-    mapping(address => mapping(uint256 => uint256)) public paymentContractBalancePerCycle;
-
-    mapping(uint256 => uint256) public totalPaymentContractBalancesPerCycle;
+    mapping(uint256 => uint256) public totalAIMinerBalancesPerCycle;
 
     mapping(uint256 => uint256) public lowestCycleBalance;
+
+    mapping(uint256 => uint256) public nativeBurnedPerCycle;
     /**
      * @dev Emitted when `account` claims an amount of `fees` in native token
      * through {claimFees} in `cycle`.
@@ -259,6 +269,11 @@ contract Q is ERC2771Context, ReentrancyGuard {
         uint256 batchNumber
     );
 
+    event NewAIRegistered(
+        address indexed aiMiner,
+        string name
+    );
+
     /**
      * @dev Checks that the caller has sent an amount that is equal or greater 
      * than the sum of the protocol fee 
@@ -268,16 +283,23 @@ contract Q is ERC2771Context, ReentrancyGuard {
     modifier gasWrapper() {
         uint256 startGas = gasleft();
         _;
-        uint256 remainingGas = startGas - gasleft();
+        uint256 gasConsumed = startGas - gasleft();
+        nativeBurnedPerCycle[currentCycle] += gasConsumed * block.basefee;
     }
 
     /**
      * @param forwarder forwarder contract address.
      */
-    constructor(address forwarder, address _devAddress, address _dxnBuyAndBurn, address _qBuyAndBurn) ERC2771Context(forwarder) {
-        devAddress = _devAddress;
+    constructor(
+        address forwarder,
+        address _marketingAddress,
+        address _maintenanceAddress,
+        address _dxnBuyAndBurn
+    ) ERC2771Context(forwarder) payable {
+        marketingAddress = _marketingAddress;
         dxnBuyAndBurn = _dxnBuyAndBurn;
-        qBuyAndBurn = _qBuyAndBurn;
+        maintenanceAddress = _maintenanceAddress;
+        //qBuyAndBurn = _qBuyAndBurn;
         qToken = new QERC20();
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 5 minutes;
@@ -314,11 +336,11 @@ contract Q is ERC2771Context, ReentrancyGuard {
         updateStats(_msgSender(), currentCycleMem);
         updateStats(aiMiner, currentCycleMem);
 
-        calculateCycleEntries(batchNumber, currentCycleMem);
+        calculateCycleEntries(batchNumber, currentCycleMem, aiMiner);
 
-        registerPaymentContractBalance(aiMinerPaymentContract[aiMiner], currentCycleMem);
+        registerPaymentContractBalance(aiMiner, currentCycleMem);
 
-        cycleAccruedFees[currentCycle] += protocolFee * 50 / MAX_BPS;
+        cycleAccruedFees[currentCycle] += protocolFee * MINER_ALLOCATION / MAX_BPS;
 
         lastActiveCycle[_msgSender()] = currentCycle;
         lastActiveCycle[aiMiner] = currentCycle;
@@ -332,8 +354,16 @@ contract Q is ERC2771Context, ReentrancyGuard {
         }
     }
 
-    function registerPaymentContract() external {
-        aiMinerPaymentContract[msg.sender] = new QPayment();
+    function registerAIMiner(string calldata name) external payable {
+        address aiMiner = msg.sender;
+        require(msg.value >= calculateRegisterFee());
+        require(!isAIMinerRegistered[aiMiner], "Q: AI miner already registered");
+        isAIMinerRegistered[aiMiner] = true;
+        emit NewAIRegistered(aiMiner, name);
+    }
+
+    function addFundsForAIMiner(address aiMiner) external payable {
+        registerPaymentContractBalance(aiMiner, currentStartedCycle);
     }
 
     /**
@@ -345,8 +375,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nonReentrant()
     {
         calculateCycle();
-        updateCycleFeesPerStakeSummed();
-        updateStats(_msgSender());
+        uint256 currentCycleMem = currentCycle;
+
+        updateCycleFeesPerStakeSummed(currentCycleMem);
+        updateStats(_msgSender(), currentCycleMem);
         uint256 reward = accRewards[_msgSender()] - accWithdrawableStake[_msgSender()];
         
         require(reward > 0, "DBXen: account has no rewards");
@@ -355,11 +387,11 @@ contract Q is ERC2771Context, ReentrancyGuard {
         if (lastStartedCycle == currentStartedCycle) {
             pendingStakeWithdrawal += reward;
         } else {
-            summedCycleStakes[currentCycle] = summedCycleStakes[currentCycle] - reward;
+            summedCycleStakes[currentCycleMem] = summedCycleStakes[currentCycleMem] - reward;
         }
 
         qToken.mintReward(_msgSender(), reward);
-        emit RewardsClaimed(currentCycle, _msgSender(), reward);
+        emit RewardsClaimed(currentCycleMem, _msgSender(), reward);
     }
 
     /**
@@ -370,8 +402,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nonReentrant()
     {
         calculateCycle();
-        updateCycleFeesPerStakeSummed();
-        updateStats(_msgSender());
+        uint256 currentCycleMem = currentCycle;
+
+        updateCycleFeesPerStakeSummed(currentCycleMem);
+        updateStats(_msgSender(), currentCycleMem);
 
         uint256 fees = accAccruedFees[_msgSender()];
         require(fees > 0, "DBXen: amount is zero");
@@ -392,12 +426,14 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nonReentrant()
     {
         calculateCycle();
-        updateCycleFeesPerStakeSummed();
-        updateStats(_msgSender());
+        uint256 currentCycleMem = currentCycle;
+
+        updateCycleFeesPerStakeSummed(currentCycleMem);
+        updateStats(_msgSender(), currentCycleMem);
         require(amount > 0, "DBXen: amount is zero");
         require(currentCycleMem == currentStartedCycle, "DBXeNFT: Only stake during active cycle");
         pendingStake += amount;
-        uint256 cycleToSet = currentCycle + 1;
+        uint256 cycleToSet = currentCycleMem + 1;
 
         if (lastStartedCycle == currentStartedCycle) {
             cycleToSet = lastStartedCycle + 1;
@@ -431,8 +467,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nonReentrant()
     {
         calculateCycle();
-        updateCycleFeesPerStakeSummed();
-        updateStats(_msgSender());
+        uint256 currentCycleMem = currentCycle;
+
+        updateCycleFeesPerStakeSummed(currentCycleMem);
+        updateStats(_msgSender(), currentCycleMem);
         require(amount > 0, "DBXen: amount is zero");
 
         require(
@@ -443,14 +481,14 @@ contract Q is ERC2771Context, ReentrancyGuard {
         if (lastStartedCycle == currentStartedCycle) {
             pendingStakeWithdrawal += amount;
         } else {
-            summedCycleStakes[currentCycle] -= amount;
+            summedCycleStakes[currentCycleMem] -= amount;
         }
 
         accWithdrawableStake[_msgSender()] -= amount;
         accRewards[_msgSender()] -= amount;
 
         qToken.safeTransfer(_msgSender(), amount);
-        emit Unstaked(currentCycle, _msgSender(), amount);
+        emit Unstaked(currentCycleMem, _msgSender(), amount);
     }
 
     /**
@@ -460,14 +498,14 @@ contract Q is ERC2771Context, ReentrancyGuard {
         return (block.timestamp - i_initialTimestamp) / i_periodDuration;
     }
 
-    function getAIMinerRankMultiplier(address miner) internal returns(uint256 multiplier) {
+    function getAIMinerRankMultiplier(address miner) internal view returns(uint256 multiplier) {
         uint256 lastStartedCycleMem = lastStartedCycle;
         uint256 lastStartedCycleBalance = 
-            paymentContractBalancePerCycle[aiMinerPaymentContract[miner]][lastStartedCycleMem];
+            aiMinerBalancePerCycle[miner][lastStartedCycleMem];
         if
         (
             lastStartedCycleBalance == 0 ||
-            aiMinerPaymentContract(miner) == address(0) || 
+            !isAIMinerRegistered[miner] || 
             lastStartedCycleMem == 0
         ) {
             multiplier = 1;
@@ -476,43 +514,33 @@ contract Q is ERC2771Context, ReentrancyGuard {
         }
     }
 
-    function calculateProtocolFee(uint256 batchNumber, uint256 cycle) internal returns(uint256 protocolFee) {
+    function calculateProtocolFee(uint256 batchNumber, uint256 cycle) internal view returns(uint256 protocolFee) {
         protocolFee = (0.01 ether * batchNumber * 
-            (MAX_BPS  + cycleInteraction[cycle])) / MAX_BPS;
+            (LATE_BID  + cycleInteraction[cycle])) / LATE_BID_MAX;
+    }
+
+    function calculateRegisterFee() internal view returns(uint256 fee) {
+
     }
 
     function distributeProtocolFee(uint256 protocolFee) internal {
-        sendViaCall(payable(devAddress), protocolFee * 5 / MAX_BPS);
-        sendViaCall(payable(dxnBuyAndBurn), protocolFee * 5 / MAX_BPS);
-        sendViaCall(payable(qBuyAndBurn), protocolFee * 40 / MAX_BPS);
+        sendViaCall(payable(marketingAddress), protocolFee * MARKETING_ALLOCATION / MAX_BPS);
+        sendViaCall(payable(maintenanceAddress), protocolFee * MAINTENANCE_ALLOCATION / MAX_BPS);
+        sendViaCall(payable(dxnBuyAndBurn), protocolFee * DXNBUYBURN_ALLOCATION / MAX_BPS);
+        sendViaCall(payable(qBuyAndBurn), protocolFee * QBUYBURN_ALLOCATION / MAX_BPS);
     }
 
-    function registerPaymentContractBalance(address paymentContract, uint256 cycle) internal {
-        if(paymentContract == address(0)) {
-            uint256 actualBalance = paymentContract.balance;
-            
-            if(actualBalance >= 0.1 ether) {
-                uint256 currentlyRegisteredBal = paymentContractBalancePerCycle[paymentContract][cycle];
-    
-                if(currentlyRegisteredBal == 0) {
-                    totalPaymentContractBalancesPerCycle += actualBalance;
-                } else if(currentlyRegisteredBal > actualBalance) {
-                    totalPaymentContractBalancesPerCycle -=
-                        (currentlyRegisteredBal - actualBalance);
-                } else {
-                    totalPaymentContractBalancesPerCycle +=
-                        (actualBalance - currentlyRegisteredBal);
-                }
+    function registerPaymentContractBalance(address aiMiner, uint256 cycle) internal {
+        uint256 currentBalancePlusValue = aiMinerBalancePerCycle[aiMiner][cycle] + msg.value;
+        require(currentBalancePlusValue >= 0.1 ether, "Q: Min. threshold balance not met");
 
-                if(currentlyRegisteredBal != actualBalance) {
-                    paymentContractBalancePerCycle[paymentContract][cycle] = actualBalance;
-                }
+        totalAIMinerBalancesPerCycle[cycle] += msg.value;
+        aiMinerBalancePerCycle[aiMiner][cycle] += msg.value;
                 
-                uint256 currentCycleLowestBalance = lowestCycleBalance[cycle];
-                if(actualBalance < currentCycleLowestBalance || currentCycleLowestBalance == 0) {
-                    lowestCycleBalance[cycle] = actualBalance;
-                }
-            }
+        uint256 currentCycleLowestBalance = lowestCycleBalance[cycle];
+        if(currentBalancePlusValue < currentCycleLowestBalance ||
+            currentCycleLowestBalance == 0) {
+            lowestCycleBalance[cycle] = currentBalancePlusValue;
         }
     }
 
@@ -566,14 +594,23 @@ contract Q is ERC2771Context, ReentrancyGuard {
         }
     }
 
+    function calculateCycleReward(uint256 cycle) internal returns (uint256 reward) {  
+        reward = nativeBurnedPerCycle[cycle] * 100 - 
+            nativeBurnedPerCycle[cycle] * currentBurnDecrease / 200;
+            
+        if(currentBurnDecrease < 20000) {
+            currentBurnDecrease++;
+        }
+    }
+
     /**
      * @dev Updates the global state related to starting a new cycle along 
      * with helper state variables used in computation of staking rewards.
      */
     function setUpNewCycle(uint256 cycle) internal {
         if (rewardPerCycle[cycle] == 0) {
-            lastCycleReward = currentCycleReward;
-            uint256 calculatedCycleReward = (lastCycleReward * 10000) / 10020;
+            // lastCycleReward = currentCycleReward;
+            uint256 calculatedCycleReward = calculateCycleReward(lastStartedCycle);
             currentCycleReward = calculatedCycleReward;
             rewardPerCycle[cycle] = calculatedCycleReward;
 
