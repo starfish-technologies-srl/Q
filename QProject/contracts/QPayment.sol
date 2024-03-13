@@ -2,6 +2,7 @@ pragma solidity ^0.8.23;
 import "./Q.sol";
 
 contract QPayment {
+
     address public contractOwner;
 
     uint256 public startTime;
@@ -10,21 +11,23 @@ contract QPayment {
 
     uint256 public cycleDuration;
 
-    uint256 public constant MAX_BPS = 100;
+    address constant forwarder = 0x0000000000000000000000000000000000000000;
 
-    mapping(address => uint256) public aiRegisterFee;
+    address constant devAddress = 0x0000000000000000000000000000000000000000;
+
+    address constant dxnBuyAndBurn = 0x0000000000000000000000000000000000000000;
+
+    address constant qBuyAndBurn = 0x0000000000000000000000000000000000000000;
+
+    address[] public AIAddresses;
+
+    uint256 public constant MAX_BPS = 100;
 
     mapping(uint256 => uint256) public feePerCycle;
 
-    address constant forwarder;
+    mapping(address => uint256) public aiRegisterFee;
 
-    address constant devAddress;
-
-    address constant dxnBuyAndBurn;
-
-    address constant qBuyAndBurn;
-
-    event AIRegisterData(address indexed AIOwner, address indexed AIAddress, uint256 fee);
+    event AIRegisterData(address indexed AIOwner, address indexed AIAddress, uint256 fee, string AIName);
 
     event QDeployment(address indexed QContractAddress, address indexed deployer, uint256 amountSentToQ, uint256 amountSentToDeployer);
 
@@ -37,7 +40,7 @@ contract QPayment {
         feePerCycle[2] = 7 ether;
     }
 
-    function AIRegister(address aiAddress) external payable {
+    function AIRegister(address aiAddress, string calldata AIName) external payable {
         require(
             block.timestamp >= startTime,
             "QPayment: You try to pay before starting period!"
@@ -57,7 +60,8 @@ contract QPayment {
             aiRegisterFee[aiAddress] = msg.value;
         }
 
-        emit AIRegisterData(msg.sender, aiAddress, fee);
+        AIAddresses.push(aiAddress);
+        emit AIRegisterData(msg.sender, aiAddress, fee, AIName);
     }
 
     function calculateCurrentCycle() public returns (uint256) {
@@ -68,11 +72,13 @@ contract QPayment {
         require(block.timestamp > endTime,"QPayment: Cannot send balance!");
         uint256 userPercent = address(this).balance * 10 / MAX_BPS;
         uint256 contractPercent = address(this).balance * 90 / MAX_BPS;
-        QContractAddress = new Q(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn);
+        QContractAddress = (address)(new Q{value:contractPercent}(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, AIAddresses));
         sendViaCall(payable(msg.sender), userPercent);
-        sendViaCall(payable(QContractAddress), contractPercent);
+        emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent);
+    }
 
-        emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent, block.timestamp);
+    function getAllAIAddresses() public returns(address[] memory) {
+        return AIAddresses;
     }
 
     function sendViaCall(address payable to, uint256 amount) internal {
