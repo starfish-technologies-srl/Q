@@ -27,7 +27,7 @@ contract QPayment {
 
     mapping(address => uint256) public aiRegisterFee;
 
-    event AIRegisterData(address indexed AIOwner, address indexed AIAddress, uint256 fee, string AIName);
+    event AIRegisterData(address indexed AIAddress, uint256 fee, string AIName);
 
     event QDeployment(address indexed QContractAddress, address indexed deployer, uint256 amountSentToQ, uint256 amountSentToDeployer);
 
@@ -40,7 +40,7 @@ contract QPayment {
         feePerCycle[2] = 7 ether;
     }
 
-    function AIRegister(address aiAddress, string calldata AIName) external payable {
+    function AIRegister(string calldata AIName) external payable {
         require(
             block.timestamp >= startTime,
             "QPayment: You try to pay before starting period!"
@@ -51,17 +51,17 @@ contract QPayment {
             msg.value >= fee,
             "QPayment: The registration fee sent to the contract is insufficient!"
         );
-        require(aiRegisterFee[aiAddress] == 0, "QPayment: AI address has already been registered!");
+        require(aiRegisterFee[msg.sender] == 0, "QPayment: AI address has already been registered!");
 
         if (msg.value > fee) {
             sendViaCall(payable(msg.sender), msg.value - fee);
-            aiRegisterFee[aiAddress] = fee;
+            aiRegisterFee[msg.sender] = fee;
         } else {
-            aiRegisterFee[aiAddress] = msg.value;
+            aiRegisterFee[msg.sender] = msg.value;
         }
 
-        AIAddresses.push(aiAddress);
-        emit AIRegisterData(msg.sender, aiAddress, fee, AIName);
+        AIAddresses.push(msg.sender);
+        emit AIRegisterData(msg.sender, fee, AIName);
     }
 
     function calculateCurrentCycle() public returns (uint256) {
@@ -69,10 +69,10 @@ contract QPayment {
     }
 
     function deployQContract() public returns(address QContractAddress) {
-        require(block.timestamp > endTime,"QPayment: Cannot send balance!");
+        require(block.timestamp > endTime,"QPayment: You cannot deploy before the three days are up!");
         uint256 userPercent = address(this).balance * 10 / MAX_BPS;
         uint256 contractPercent = address(this).balance * 90 / MAX_BPS;
-        QContractAddress = (address)(new Q{value:contractPercent}(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, AIAddresses));
+        QContractAddress = (address)(new Q{value:contractPercent}(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, getAllAIAddresses()));
         sendViaCall(payable(msg.sender), userPercent);
         emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent);
     }
