@@ -13,8 +13,8 @@ contract QERC20 is ERC20Permit {
     }
 
     function mintReward(address account, uint256 amount) external {
-        require(msg.sender == owner, "DBXen: caller is not DBXen contract.");
-        require(super.totalSupply() < 5010000000000000000000000, "DBXen: max supply already minted");
+        require(msg.sender == owner, "Q: caller is not Q contract.");
+        require(super.totalSupply() < 5010000000000000000000000, "Q: max supply already minted");
         _mint(account, amount);
     }
 }
