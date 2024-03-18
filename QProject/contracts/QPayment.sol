@@ -33,8 +33,8 @@ contract QPayment {
 
     constructor()  {
         startTime = block.timestamp;
-        endTime = startTime + 3 minutes;
-        cycleDuration = 1 minutes;
+        endTime = startTime + 3 days;
+        cycleDuration = 1 days;
         feePerCycle[0] = 5 ether; 
         feePerCycle[1] = 6 ether;
         feePerCycle[2] = 7 ether;

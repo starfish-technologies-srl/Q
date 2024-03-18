@@ -537,7 +537,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
     }
 
     function calculateRegisterFee() internal {
-        if(currentRegistrationFee != 5 ether) {
+        if(currentRegistrationFee > 5 ether) {
             uint256 newRegistrationFee = (currentRegistrationFee * 10000) / 10020;
             if(newRegistrationFee < 5 ether) {
                 currentRegistrationFee = 5 ether;
