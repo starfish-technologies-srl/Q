@@ -124,6 +124,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
     uint256 public currentBurnDecrease;
 
+    uint256 public currentRegistrationFee;
     /**
      * The amount of batches an account has burned.
      * Resets during a new cycle when an account performs an action
@@ -294,18 +295,29 @@ contract Q is ERC2771Context, ReentrancyGuard {
         address forwarder,
         address _marketingAddress,
         address _maintenanceAddress,
-        address _dxnBuyAndBurn
+        address _dxnBuyAndBurn,
+        address[] memory AIRegisteredAddresses
     ) ERC2771Context(forwarder) payable {
         marketingAddress = _marketingAddress;
         dxnBuyAndBurn = _dxnBuyAndBurn;
         maintenanceAddress = _maintenanceAddress;
-        //qBuyAndBurn = _qBuyAndBurn;
         qToken = new QERC20();
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 5 minutes;
         currentCycleReward = 10000 * 1e18;
         summedCycleStakes[0] = 10000 * 1e18;
         rewardPerCycle[0] = 10000 * 1e18;
+        currentRegistrationFee = 10 * 1e18;
+        setAiMintersAddresses(AIRegisteredAddresses);
+    }
+
+    function setAiMintersAddresses(address[] memory AIAddresses) internal {
+        uint256 numberOfAIs = AIAddresses.length;
+        for(uint256 i=0; i < numberOfAIs; i++) {
+            if(!isAIMinerRegistered[AIAddresses[i]]) {
+                isAIMinerRegistered[AIAddresses[i]] = true;
+            }
+        }
     }
 
     /**
@@ -356,9 +368,14 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
     function registerAIMiner(string calldata name) external payable {
         address aiMiner = msg.sender;
-        require(msg.value >= calculateRegisterFee());
+        require(msg.value >= currentRegistrationFee);
         require(!isAIMinerRegistered[aiMiner], "Q: AI miner already registered");
         isAIMinerRegistered[aiMiner] = true;
+        if(msg.value > currentRegistrationFee) {
+            sendViaCall(payable(_msgSender()), msg.value - currentRegistrationFee);
+        }
+
+        cycleAccruedFees[currentStartedCycle] += currentRegistrationFee;
         emit NewAIRegistered(aiMiner, name);
     }
 
@@ -519,8 +536,15 @@ contract Q is ERC2771Context, ReentrancyGuard {
             (LATE_BID  + cycleInteraction[cycle])) / LATE_BID_MAX;
     }
 
-    function calculateRegisterFee() internal view returns(uint256 fee) {
-
+    function calculateRegisterFee() internal {
+        if(currentRegistrationFee > 5 ether) {
+            uint256 newRegistrationFee = (currentRegistrationFee * 10000) / 10020;
+            if(newRegistrationFee < 5 ether) {
+                currentRegistrationFee = 5 ether;
+            } else {
+                currentRegistrationFee = newRegistrationFee;
+            }
+        }
     }
 
     function distributeProtocolFee(uint256 protocolFee) internal {
@@ -610,6 +634,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
     function setUpNewCycle(uint256 cycle) internal {
         if (rewardPerCycle[cycle] == 0) {
             // lastCycleReward = currentCycleReward;
+            calculateRegisterFee();
             uint256 calculatedCycleReward = calculateCycleReward(lastStartedCycle);
             currentCycleReward = calculatedCycleReward;
             rewardPerCycle[cycle] = calculatedCycleReward;
