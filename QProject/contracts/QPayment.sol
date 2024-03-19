@@ -64,7 +64,7 @@ contract QPayment {
         emit AIRegisterData(msg.sender, fee, AIName);
     }
 
-    function calculateCurrentCycle() public returns (uint256) {
+    function calculateCurrentCycle() public view returns (uint256) {
         return (block.timestamp - startTime) / cycleDuration;
     }
 
@@ -77,7 +77,7 @@ contract QPayment {
         emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent);
     }
 
-    function getAllAIAddresses() public returns(address[] memory) {
+    function getAllAIAddresses() public view returns(address[] memory) {
         return AIAddresses;
     }
 
