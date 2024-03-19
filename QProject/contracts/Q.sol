@@ -49,11 +49,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
     uint256 public constant MAX_BPS_101 = 101;
 
     /**
-     * Amount of XEN tokens per batch
-     */
-    uint256 public constant XEN_BATCH_AMOUNT = 2_500_000 ether;
-
-    /**
      * Used to minimise division remainder when earned fees are calculated.
      */
     uint256 public constant SCALING_FACTOR = 1e40;
@@ -74,11 +69,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * Reward token amount allocated for the current cycle.
      */
     uint256 public currentCycleReward;
-
-    /**
-     * Reward token amount allocated for the previous cycle.
-     */
-    uint256 public lastCycleReward;
 
     /**
      * Helper variable to store pending stake amount.   
@@ -113,14 +103,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * stake once a new cycle starts.
      */
     uint256 public pendingStakeWithdrawal;
-
-    /**
-     * Accumulates fees while there are no tokens staked after the
-     * entire token supply has been distributed. Once tokens are
-     * staked again, these fees will be distributed in the next
-     * active cycle.
-     */
-    uint256 public pendingFees;
 
     uint256 public currentBurnDecrease;
 
@@ -205,8 +187,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
     mapping(address => bool) public isAIMinerRegistered;
 
     mapping(address => mapping(uint256 => uint256)) public aiMinerBalancePerCycle;
-
-    mapping(uint256 => uint256) public totalAIMinerBalancesPerCycle;
 
     mapping(uint256 => uint256) public lowestCycleBalance;
 
@@ -304,9 +284,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
         qToken = new QERC20();
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 5 minutes;
-        currentCycleReward = 10000 * 1e18;
-        summedCycleStakes[0] = 10000 * 1e18;
-        rewardPerCycle[0] = 10000 * 1e18;
         currentRegistrationFee = 10 * 1e18;
         setAiMintersAddresses(AIRegisteredAddresses);
     }
@@ -337,14 +314,17 @@ contract Q is ERC2771Context, ReentrancyGuard {
         require(batchNumber <= 100, "DBXen: maxim batch number is 100");
         require(batchNumber > 0, "DBXen: min batch number is 1");
 
+        require(isAIMinerRegistered, "Q:AI miner must be registered");
+
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
 
         uint256 protocolFee = calculateProtocolFee(batchNumber, currentCycleMem);
         require(msg.value >= protocolFee , "DBXen: value less than protocol fee");
 
-        updateCycleFeesPerStakeSummed(currentCycleMem);
+        endCycle(currentCycleMem);
         setUpNewCycle(currentCycleMem);
+
         updateStats(_msgSender(), currentCycleMem);
         updateStats(aiMiner, currentCycleMem);
 
@@ -394,7 +374,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
 
-        updateCycleFeesPerStakeSummed(currentCycleMem);
+        endCycle(currentCycleMem);
         updateStats(_msgSender(), currentCycleMem);
         uint256 reward = accRewards[_msgSender()] - accWithdrawableStake[_msgSender()];
         
@@ -421,7 +401,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
 
-        updateCycleFeesPerStakeSummed(currentCycleMem);
+        endCycle(currentCycleMem);
         updateStats(_msgSender(), currentCycleMem);
 
         uint256 fees = accAccruedFees[_msgSender()];
@@ -445,7 +425,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
 
-        updateCycleFeesPerStakeSummed(currentCycleMem);
+        endCycle(currentCycleMem);
         updateStats(_msgSender(), currentCycleMem);
         require(amount > 0, "DBXen: amount is zero");
         require(currentCycleMem == currentStartedCycle, "DBXeNFT: Only stake during active cycle");
@@ -486,7 +466,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
 
-        updateCycleFeesPerStakeSummed(currentCycleMem);
+        endCycle(currentCycleMem);
         updateStats(_msgSender(), currentCycleMem);
         require(amount > 0, "DBXen: amount is zero");
 
@@ -517,17 +497,12 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
     function getAIMinerRankMultiplier(address miner) internal view returns(uint256 multiplier) {
         uint256 lastStartedCycleMem = lastStartedCycle;
-        uint256 lastStartedCycleBalance = 
-            aiMinerBalancePerCycle[miner][lastStartedCycleMem];
-        if
-        (
-            lastStartedCycleBalance == 0 ||
-            !isAIMinerRegistered[miner] || 
-            lastStartedCycleMem == 0
-        ) {
-            multiplier = 1;
-        } else {
+        uint256 lastStartedCycleBalance = aiMinerBalancePerCycle[miner][lastStartedCycleMem];
+
+        if(lastStartedCycleBalance != 0) {
             multiplier = lastStartedCycleBalance * 2 / lowestCycleBalance[lastStartedCycleMem];
+        } else {
+            multiplier = 1;
         }
     }
 
@@ -558,7 +533,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
         uint256 currentBalancePlusValue = aiMinerBalancePerCycle[aiMiner][cycle] + msg.value;
         require(currentBalancePlusValue >= 0.1 ether, "Q: Min. threshold balance not met");
 
-        totalAIMinerBalancesPerCycle[cycle] += msg.value;
         aiMinerBalancePerCycle[aiMiner][cycle] += msg.value;
                 
         uint256 currentCycleLowestBalance = lowestCycleBalance[cycle];
@@ -594,33 +568,35 @@ contract Q is ERC2771Context, ReentrancyGuard {
     /**
      * @dev Updates the global helper variables related to fee distribution.
      */
-    function updateCycleFeesPerStakeSummed(uint256 cycle) internal {
+    function endCycle(uint256 cycle) internal {
         if (cycle != currentStartedCycle) {
-            previousStartedCycle = lastStartedCycle + 1;
+            previousStartedCycle = lastStartedCycle;
             lastStartedCycle = currentStartedCycle;
         }
-       
+
+        uint256 lastStartedCycleMem = lastStartedCycle;
+
         if (
-            cycle > lastStartedCycle &&
-            cycleFeesPerStakeSummed[lastStartedCycle + 1] == 0
+            cycle > lastStartedCycleMem &&
+            cycleFeesPerStakeSummed[lastStartedCycleMem + 1] == 0
         ) {
-            uint256 feePerStake;
-            if(summedCycleStakes[lastStartedCycle] != 0) {
-                feePerStake = ((cycleAccruedFees[lastStartedCycle] + pendingFees) * SCALING_FACTOR) / 
-            summedCycleStakes[lastStartedCycle];
-                pendingFees = 0;
-            } else {
-                pendingFees += cycleAccruedFees[lastStartedCycle];
-                feePerStake = 0;
-            }
+            calculateCycleReward(lastStartedCycleMem);
             
-            cycleFeesPerStakeSummed[lastStartedCycle + 1] = cycleFeesPerStakeSummed[previousStartedCycle] + feePerStake;
+            uint256 feePerStake = (cycleAccruedFees[lastStartedCycleMem] * SCALING_FACTOR) / 
+                summedCycleStakes[lastStartedCycleMem];
+            
+            cycleFeesPerStakeSummed[lastStartedCycleMem + 1] = cycleFeesPerStakeSummed[previousStartedCycle + 1] + feePerStake;
         }
     }
 
-    function calculateCycleReward(uint256 cycle) internal returns (uint256 reward) {  
-        reward = nativeBurnedPerCycle[cycle] * 100 - 
+    function calculateCycleReward(uint256 cycle) internal {  
+        uint256 reward = nativeBurnedPerCycle[cycle] * 100 - 
             nativeBurnedPerCycle[cycle] * currentBurnDecrease / 200;
+
+        currentCycleReward = reward;
+        rewardPerCycle[cycle] = reward;
+
+        summedCycleStakes[cycle] += summedCycleStakes[previousStartedCycle] + currentCycleReward;
             
         if(currentBurnDecrease < 20000) {
             currentBurnDecrease++;
@@ -632,16 +608,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * with helper state variables used in computation of staking rewards.
      */
     function setUpNewCycle(uint256 cycle) internal {
-        if (rewardPerCycle[cycle] == 0) {
-            // lastCycleReward = currentCycleReward;
+        if (cycle != currentStartedCycle) {
             calculateRegisterFee();
-            uint256 calculatedCycleReward = calculateCycleReward(lastStartedCycle);
-            currentCycleReward = calculatedCycleReward;
-            rewardPerCycle[cycle] = calculatedCycleReward;
 
             currentStartedCycle = cycle;
-            
-            summedCycleStakes[currentStartedCycle] += summedCycleStakes[lastStartedCycle] + currentCycleReward;
             
             if (pendingStake != 0) {
                 summedCycleStakes[currentStartedCycle] += pendingStake;
