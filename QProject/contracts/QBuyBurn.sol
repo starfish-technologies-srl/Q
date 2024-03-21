@@ -52,7 +52,7 @@ contract QBuyBurn {
     function burnToken(uint256 amountToBurn) public {
         require(isContract(Q_WETH9_Pool), "BuyAndBurn: The pool is not yet created!");
         require(block.timestamp > i_initialTimestamp + 1 days,"BuyAndBurn: You cannot burn in first day!");
-        require(amountToBurn >= 0.1 ether, "BuyAndBurn: Inufficient funds in contract!");
+        require(amountToBurn >= 0.1 ether, "BuyAndBurn: Amount to burn less than 0.1!");
         uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
         uint256 amountToCompare = collectedAmount;
         if(globalCountForDays < 50) 
