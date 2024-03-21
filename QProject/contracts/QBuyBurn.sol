@@ -35,7 +35,7 @@ contract QBuyBurn {
     uint24 public constant poolFee = 10000;
 
     receive() external payable {
-        if(block.timestamp < i_initialTimestamp + 1 minutes) {
+        if(block.timestamp < i_initialTimestamp + 1 days) {
             ETHAmoutForFirst24Hours += msg.value;
          } else {
             if(msg.value > 0) {
@@ -46,7 +46,7 @@ contract QBuyBurn {
 
     constructor(address _qAddress) {
         i_initialTimestamp = block.timestamp;
-        i_periodDuration = 2 minutes;
+        i_periodDuration = 1 days;
         Q_WETH9_Pool = computePoolAddress(WETH9, _qAddress, poolFee);
         Q = _qAddress;
     }
@@ -54,7 +54,7 @@ contract QBuyBurn {
     function burnToken(uint256 amountToBurn) public {
         require(isContract(Q_WETH9_Pool), "BuyAndBurn: The pool is not yet created!");
         uint256 currentCycle = getCurrentCycle();
-        require(block.timestamp > i_initialTimestamp + 1 minutes,"BuyAndBurn: You cannot burn in first day!");
+        require(block.timestamp > i_initialTimestamp + 1 days,"BuyAndBurn: You cannot burn in first day!");
         require(amountToBurn >= 0.1 ether, "BuyAndBurn: Inufficient funds in contract!");
         require(collectedAmount >= amountToBurn, "BuyAndBurn: The contribution is lower than the entered amount!");
         collectedAmount -= amountToBurn;
