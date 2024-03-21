@@ -21,17 +21,17 @@ describe("Test claim fee functionality", async function () {
   });
 
   it("Contribute", async () => {
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: ethers.utils.parseEther("100"),
     });
     expect(
       ethers.utils.formatEther(
-        await QContract.accCycleBatchesBurned(deployer.address)
+        await QContract.accCycleEntries(deployer.address)
       )
     ).to.equal("95.0");
     expect(
       ethers.utils.formatEther(
-        await QContract.accCycleBatchesBurned(ai.address)
+        await QContract.accCycleEntries(ai.address)
       )
     ).to.equal("5.0");
 
@@ -42,32 +42,32 @@ describe("Test claim fee functionality", async function () {
     let protocolFee =
       (0.01 * 100 * (Number(actualNumberOfInteraction) + 100)) / 100;
 
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: ethers.utils.parseEther(protocolFee.toString()),
     });
 
     expect(
       ethers.utils.formatEther(
-        await QContract.accCycleBatchesBurned(deployer.address)
+        await QContract.accCycleEntries(deployer.address)
       )
     ).to.equal("190.0");
     expect(
       ethers.utils.formatEther(
-        await QContract.accCycleBatchesBurned(ai.address)
+        await QContract.accCycleEntries(ai.address)
       )
     ).to.equal("10.0");
 
     await hre.ethers.provider.send("evm_increaseTime", [60 * 60 * 24]);
     await hre.ethers.provider.send("evm_mine");
 
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: ethers.utils.parseEther("100"),
     });
     expect(await QContract.accRewards(deployer.address)).to.equal(
       ethers.utils.parseEther("9500")
     );
 
-    await QContract.connect(ai).burnBatch(ai2.address, 100, {
+    await QContract.connect(ai).enterCycle(ai2.address, 100, {
       value: ethers.utils.parseEther(protocolFee.toString()),
     });
 
@@ -94,7 +94,7 @@ describe("Test claim fee functionality", async function () {
 
     let protocolFee = ethers.utils.parseEther("0.5");
 
-    await QContract.burnBatch(ai.address, 50, {
+    await QContract.enterCycle(ai.address, 50, {
       value: protocolFee,
     });
 
@@ -149,7 +149,7 @@ describe("Test claim fee functionality", async function () {
     let fee = 0.01 * 100;
     let protocolFee2 = ethers.utils.parseEther(fee.toString());
 
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: protocolFee2,
     });
 

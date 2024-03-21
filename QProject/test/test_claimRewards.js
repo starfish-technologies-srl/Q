@@ -57,7 +57,7 @@ describe("Test reward distribution functionality", async function () {
 
     let protocolFee = ethers.utils.parseEther("1");
 
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: protocolFee,
     });
 
@@ -114,11 +114,11 @@ describe("Test reward distribution functionality", async function () {
   it.only("Reward distribution for multiple ai", async () => {
     //2 interaction, 1 user1 and 1 deployer => 95% poll will be split between user1 and deployer and 5% will be for ai
     let protocolFee = ethers.utils.parseEther("1");
-    await QContract.burnBatch(ai.address, 100, {
+    await QContract.enterCycle(ai.address, 100, {
       value: protocolFee,
     });
     let protocolFee2 = (0.01 * 1 * 100 * (100 + 1)) / 100;
-    await QContract.connect(user1).burnBatch(ai.address, 100, {
+    await QContract.connect(user1).enterCycle(ai.address, 100, {
       value: ethers.utils.parseEther(protocolFee2.toString()),
     });
     let firstCycleReward = await QContract.currentCycleReward();

@@ -92,7 +92,7 @@ contract QViews {
             if(qContract.summedCycleStakes(lastStartedCycleTemp) != 0){
                 feePerStake = ((qContract.cycleAccruedFees(
                 lastStartedCycleTemp
-            ) + qContract.pendingFees()) * qContract.SCALING_FACTOR()) /
+            )) * qContract.SCALING_FACTOR()) /
                 qContract.summedCycleStakes(lastStartedCycleTemp);
             }
 
@@ -160,7 +160,7 @@ contract QViews {
      * @return the reward token amount allocated for the current cycle
      */
     function calculateCycleReward() public view returns (uint256) {
-        return (qContract.lastCycleReward() * 10000) / 10020;
+        return (qContract.currentCycleReward() * 10000) / 10020;
     }
 
     /**
@@ -180,11 +180,11 @@ contract QViews {
 
        if (
             calculatedCycle > qContract.lastActiveCycle(account) &&
-            qContract.accCycleBatchesBurned(account) != 0
+            qContract.accCycleEntries(account) != 0
         ) {
-            uint256 lastCycleAccReward = (qContract.accCycleBatchesBurned(account) *
+            uint256 lastCycleAccReward = (qContract.accCycleEntries(account) *
                 qContract.rewardPerCycle(qContract.lastActiveCycle(account))) /
-                qContract.cycleTotalBatchesBurned(qContract.lastActiveCycle(account));
+                qContract.cycleTotalEntries(qContract.lastActiveCycle(account));
 
             currentRewards += lastCycleAccReward;
         }
