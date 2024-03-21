@@ -12,7 +12,7 @@ contract QBuyBurn {
 
     uint256 public i_periodDuration;
 
-    uint256 public ETHAmoutForFirst24Hours;
+    uint256 public firstCycleReceivedEther;
 
     uint256 public globalCountForDays;
 
@@ -36,11 +36,9 @@ contract QBuyBurn {
 
     receive() external payable {
         if(block.timestamp < i_initialTimestamp + 1 days) {
-            ETHAmoutForFirst24Hours += msg.value;
+            firstCycleReceivedEther += msg.value;
          } else {
-            if(msg.value > 0) {
-               collectedAmount += msg.value;
-            }
+            collectedAmount += msg.value;
          }
     }
 
@@ -53,16 +51,21 @@ contract QBuyBurn {
 
     function burnToken(uint256 amountToBurn) public {
         require(isContract(Q_WETH9_Pool), "BuyAndBurn: The pool is not yet created!");
-        uint256 currentCycle = getCurrentCycle();
         require(block.timestamp > i_initialTimestamp + 1 days,"BuyAndBurn: You cannot burn in first day!");
         require(amountToBurn >= 0.1 ether, "BuyAndBurn: Inufficient funds in contract!");
-        require(collectedAmount >= amountToBurn, "BuyAndBurn: The contribution is lower than the entered amount!");
+        uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
+        uint256 amountToCompare = collectedAmount;
+        if(globalCountForDays < 50) 
+            amountToCompare = collectedAmount + theFiftiethPart;
+        require(amountToCompare >= amountToBurn, "BuyAndBurn: The contribution is lower than the entered amount!");
+        uint256 currentCycle = getCurrentCycle();
         collectedAmount -= amountToBurn;
         uint256 amountETH;
         uint256 callerPercent;
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
-            amountETH = (amountToBurn + (ETHAmoutForFirst24Hours / 50)) * 99 / 100;
-            callerPercent = (amountToBurn + (ETHAmoutForFirst24Hours / 50)) / 100;
+            uint256 amount = amountToBurn + theFiftiethPart;
+            amountETH = amount * 99 / 100;
+            callerPercent = amount / 100;
             globalCountForDays ++;
             feeAlreadyDistributed[currentCycle] = true;
         } else {
