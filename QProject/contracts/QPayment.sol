@@ -33,8 +33,8 @@ contract QPayment {
 
     constructor()  {
         startTime = block.timestamp;
-        endTime = startTime + 3 days;
-        cycleDuration = 1 days;
+        endTime = startTime + 3 minutes;
+        cycleDuration = 1 minutes;
         feePerCycle[0] = 5 ether; 
         feePerCycle[1] = 6 ether;
         feePerCycle[2] = 7 ether;
@@ -64,7 +64,7 @@ contract QPayment {
         emit AIRegisterData(msg.sender, fee, AIName);
     }
 
-    function calculateCurrentCycle() public returns (uint256) {
+    function calculateCurrentCycle() public view returns (uint256) {
         return (block.timestamp - startTime) / cycleDuration;
     }
 
@@ -78,7 +78,7 @@ contract QPayment {
         emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent);
     }
 
-    function getAllAIAddresses() public returns(address[] memory) {
+    function getAllAIAddresses() public view returns(address[] memory) {
         return AIAddresses;
     }
 
