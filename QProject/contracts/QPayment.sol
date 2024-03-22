@@ -15,7 +15,7 @@ contract QPayment {
     uint256 public constant MAX_BPS = 100;
     uint256[3] public feePerCycle = [5 ether, 6 ether, 7 ether]; 
 
-    mapping(address => uint256) public aiRegisterFee;
+    mapping(address => bool) public aiRegisterStatus;
 
     event AIRegisterData(address indexed AIAddress, uint256 fee, string AIName);
 
@@ -31,12 +31,12 @@ contract QPayment {
         uint256 currentCycle = calculateCurrentCycle();
         uint256 fee = feePerCycle[currentCycle];
         require(msg.value >= fee, "Fee low");
-        require(aiRegisterFee[msg.sender] == 0, "Registered");
+        require(!aiRegisterStatus[msg.sender], "Registered");
 
         if (msg.value > fee) {
             sendViaCall(payable(msg.sender), msg.value - fee);
         }
-        aiRegisterFee[msg.sender] = fee;
+        aiRegisterStatus[msg.sender] = true;
 
         AIAddresses.push(msg.sender);
         emit AIRegisterData(msg.sender, fee, AIName);

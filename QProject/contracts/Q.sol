@@ -411,7 +411,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
         require(msg.value >= registrationFee);
 
         address aiMiner = _msgSender();
-        require(!isAIMinerRegistered[aiMiner], "Q: AI miner already registered");
+        require(!isAIMinerRegistered[aiMiner], "Q: AI registered");
 
         isAIMinerRegistered[aiMiner] = true;
 
@@ -438,8 +438,8 @@ contract Q is ERC2771Context, ReentrancyGuard {
         updateStats(_msgSender(), currentCycleMem);
 
         uint256 reward = accRewards[_msgSender()] - accWithdrawableStake[_msgSender()];
-        require(reward > 0, "Q: account has no rewards");
-        require(claimAmount <= reward, "Q: claim amount exceeds rewards");
+        require(reward > 0, "Q: No rewards");
+        require(claimAmount <= reward, "Q: Exceeds rewards");
 
         accRewards[_msgSender()] -= claimAmount;
         if (lastStartedCycle == currentStartedCycle) {
