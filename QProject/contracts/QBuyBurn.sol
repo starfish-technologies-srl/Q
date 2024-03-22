@@ -10,7 +10,7 @@ contract QBuyBurn {
 
     uint256 public i_initialTimestamp;
 
-    uint256 public i_periodDuration;
+    uint256 public constant i_periodDuration = 1 days;
 
     uint256 public firstCycleReceivedEther;
 
@@ -44,20 +44,19 @@ contract QBuyBurn {
 
     constructor(address _qAddress) {
         i_initialTimestamp = block.timestamp;
-        i_periodDuration = 1 days;
         Q_WETH9_Pool = computePoolAddress(WETH9, _qAddress, poolFee);
         Q = _qAddress;
     }
 
     function burnToken(uint256 amountToBurn) public {
-        require(isContract(Q_WETH9_Pool), "BuyAndBurn: The pool is not yet created!");
-        require(block.timestamp > i_initialTimestamp + 1 days,"BuyAndBurn: You cannot burn in first day!");
-        require(amountToBurn >= 0.1 ether, "BuyAndBurn: Inufficient funds for burn!");
+        require(isContract(Q_WETH9_Pool), "Pool does not exist!");
+        require(block.timestamp > i_initialTimestamp + 1 days,"Early burn!");
+        require(amountToBurn >= 0.1 ether, "Min 0.1 ETH");
         uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
         uint256 amountToCompare = collectedAmount;
         if(globalCountForDays < 50) 
             amountToCompare = collectedAmount + theFiftiethPart;
-        require(amountToCompare >= amountToBurn, "BuyAndBurn: The contribution is lower than the entered amount!");
+        require(amountToCompare >= amountToBurn, "Insufficient funds!");
         uint256 currentCycle = getCurrentCycle();
         collectedAmount -= amountToBurn;
         uint256 amountETH;
@@ -75,7 +74,7 @@ contract QBuyBurn {
 
         uint256 amountOutExpected = _getQuote(uint128(amountETH));
         uint256 minTokenAmount = (amountOutExpected * 90) / 100;
-        require(minTokenAmount > 0, "Min. token amount can't be zero");
+        require(minTokenAmount > 0, "Min > 0");
 
         _swap(minTokenAmount, amountETH);
 

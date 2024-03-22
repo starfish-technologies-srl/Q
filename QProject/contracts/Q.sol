@@ -369,10 +369,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nonReentrant()
         gasWrapper()
     {
-        require(entryMultiplier <= 100, "Q: max multiplier is 100");
-        require(entryMultiplier > 0, "Q: min multiplier number is 1");
+        require(entryMultiplier <= 100, "Q: max 100");
+        require(entryMultiplier > 0, "Q: min 1");
 
-        require(isAIMinerRegistered[aiMiner], "Q:AI miner must be registered");
+        require(isAIMinerRegistered[aiMiner], "Q: Not registered");
 
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
