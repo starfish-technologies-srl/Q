@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./QERC20.sol";
+import "./QBuyBurn.sol";
 
 contract Q is ERC2771Context, ReentrancyGuard {
     using SafeERC20 for QERC20;
@@ -130,6 +131,12 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * 1% of protocol fees are sent to the buy and burn of DXN contract.
      */
     address public immutable qBuyAndBurn;
+
+    /**
+     * QBuyBurn contract instance.
+     * Initialized in constructor.
+     */
+    QBuyBurn public qBuyAndBurnInstance; 
 
     /**
      * Q Reward Token contract.
@@ -308,19 +315,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
         nativeBurnedPerCycle[currentCycle] += gasConsumed * block.basefee;
     }
 
-    // modifier nonReentrant {
-    //     assembly {
-    //         if tload(0) { revert(0, 0) }
-    //         tstore(0, 1)
-    //     }
-    //     _;
-    //     // Unlocks the guard, making the pattern composable.
-    //     // After the function exits, it can be called again, even in the same transaction.
-    //     assembly {
-    //         tstore(0, 0)
-    //     }
-    // }
-
     /**
      * @param forwarder forwarder contract address.
      */
@@ -336,6 +330,8 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
         qToken = new QERC20();
         dxnBuyAndBurn = _dxnBuyAndBurn;
+        qBuyAndBurnInstance = new QBuyBurn(address(qToken));
+        qBuyAndBurn = address(qBuyAndBurnInstance);
         
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 1 days;
