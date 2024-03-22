@@ -2,8 +2,9 @@
 pragma solidity ^0.8.23;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
-contract QERC20 is ERC20Permit {
+contract QERC20 is ERC20Permit, ERC20Burnable {
 
     address public immutable owner;
 

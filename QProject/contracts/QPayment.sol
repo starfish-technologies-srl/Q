@@ -13,11 +13,11 @@ contract QPayment {
 
     address constant forwarder = 0x0000000000000000000000000000000000000000;
 
-    address constant devAddress = 0x0000000000000000000000000000000000000000;
+    address constant marketingAddress = 0x0000000000000000000000000000000000000000;
+
+    address constant maintenanceAddress = 0x0000000000000000000000000000000000000000;
 
     address constant dxnBuyAndBurn = 0x0000000000000000000000000000000000000000;
-
-    address constant qBuyAndBurn = 0x0000000000000000000000000000000000000000;
 
     address[] public AIAddresses;
 
@@ -72,7 +72,8 @@ contract QPayment {
         require(block.timestamp > endTime,"QPayment: You cannot deploy before the three days are up!");
         uint256 userPercent = address(this).balance * 10 / MAX_BPS;
         uint256 contractPercent = address(this).balance * 90 / MAX_BPS;
-        QContractAddress = (address)(new Q{value:contractPercent}(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, getAllAIAddresses()));
+
+        QContractAddress = (address)(new Q{value:contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, getAllAIAddresses()));
         sendViaCall(payable(msg.sender), userPercent);
         emit QDeployment(QContractAddress, msg.sender, contractPercent, userPercent);
     }
