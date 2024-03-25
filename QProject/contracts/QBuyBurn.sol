@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.22;
+pragma solidity ^0.8.24;
 
 import "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 import "@uniswap/v3-periphery/contracts/libraries/PoolAddress.sol";
@@ -18,13 +18,13 @@ contract QBuyBurn {
 
     uint256 public collectedAmount;
 
-    address public Q; 
+    address public immutable Q; 
     
     address public immutable Q_WETH9_Pool;    
 
     address public constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
-    address public constant WETH9 = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270; 
+    address public constant WETH9 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; 
 
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
@@ -102,7 +102,7 @@ contract QBuyBurn {
         amountOut = OracleLibrary.getQuoteAtTick(tick, amountIn, WETH9, Q);
     }
 
-    function isContract(address _addr) private returns (bool isContract) {
+    function isContract(address _addr) private view returns (bool) {
         uint32 size;
         assembly {
             size := extcodesize(_addr)
@@ -110,7 +110,7 @@ contract QBuyBurn {
         return (size > 0);
     }
 
-    function computePoolAddress(address tokenA, address tokenB, uint24 fee) public view returns (address pool) {
+    function computePoolAddress(address tokenA, address tokenB, uint24 fee) public pure returns (address pool) {
         (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
         PoolAddress.PoolKey memory key = PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee});
         pool = PoolAddress.computeAddress(UNISWAP_V3_FACTORY, key);

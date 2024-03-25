@@ -1,50 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./QERC20.sol";
 import "./QBuyBurn.sol";
 
-contract Q is ERC2771Context, ReentrancyGuard {
+contract Q is ERC2771Context {
     using SafeERC20 for QERC20;
-
-    /**
-     * Protocol fee percentage allocated to the miner.
-     */
-    uint256 public constant MINER_ALLOCATION = 70;
-
-    /**
-     * Protocol fee percentage allocated to the buy and burn of Q contract.
-     */
-    uint256 public constant QBUYBURN_ALLOCATION = 25;
-
-    /**
-     * Protocol fee percentage allocated for marketing/maintenance funds.
-     */
-    uint256 public constant MARKETING_MAINTENANCE_ALLOCATION = 2;
-
-    /**
-     * Protocol fee percentage allocated to the buy and burn of DXN contract.
-     */
-    uint256 public constant DXNBUYBURN_ALLOCATION = 1;
-
-    /**
-     * Used in combination with "cycleInteractions" to add a slight
-     * penalization to subsequent cycle entries.
-     */
-    uint256 public constant LATE_BID = 1000;
-
-    /**
-     * Basis points representation of 100 percent.
-     */
-    uint256 public constant MAX_BPS = 100;
 
     /**
      * Used to minimise division remainder when earned fees are calculated.
      */
-    uint256 public constant SCALING_FACTOR = 1e40;
+    uint256 constant SCALING_FACTOR = 1e40;
 
     /**
      * Contract creation timestamp.
@@ -131,12 +99,6 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * 1% of protocol fees are sent to the buy and burn of DXN contract.
      */
     address public immutable qBuyAndBurn;
-
-    /**
-     * QBuyBurn contract instance.
-     * Initialized in constructor.
-     */
-    QBuyBurn public qBuyAndBurnInstance; 
 
     /**
      * Q Reward Token contract.
@@ -302,6 +264,19 @@ contract Q is ERC2771Context, ReentrancyGuard {
         string name
     );
 
+    modifier nonReentrant {
+        assembly {
+            if tload(0) { revert(0, 0) }
+            tstore(0, 1)
+        }
+        _;
+        // Unlocks the guard, making the pattern composable.
+        // After the function exits, it can be called again, even in the same transaction.
+        assembly {
+            tstore(0, 0)
+        }
+    }
+
     /**
      * @dev Checks that the caller has sent an amount that is equal or greater 
      * than the sum of the protocol fee 
@@ -330,8 +305,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
         qToken = new QERC20();
         dxnBuyAndBurn = _dxnBuyAndBurn;
-        qBuyAndBurnInstance = new QBuyBurn(address(qToken));
-        qBuyAndBurn = address(qBuyAndBurnInstance);
+        qBuyAndBurn = address(new QBuyBurn(address(qToken)));
         
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 1 days;
@@ -388,7 +362,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
 
         calculateCycleEntries(entryMultiplier, currentCycleMem, aiMiner);
 
-        cycleAccruedFees[currentCycle] += protocolFee * MINER_ALLOCATION / MAX_BPS;
+        cycleAccruedFees[currentCycle] += protocolFee * 70 / 100;
 
         lastActiveCycle[_msgSender()] = currentCycle;
         lastActiveCycle[aiMiner] = currentCycle;
@@ -581,7 +555,7 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * Calculates the protocol fee for entering the current cycle.
      */
     function calculateProtocolFee(uint256 entryMultiplier) internal view returns(uint256 protocolFee) {
-        protocolFee = (0.01 ether * entryMultiplier * (LATE_BID  + cycleInteractions)) / LATE_BID;
+        protocolFee = (0.01 ether * entryMultiplier * (1000  + cycleInteractions)) / 1000;
     }
 
     /**
@@ -604,10 +578,10 @@ contract Q is ERC2771Context, ReentrancyGuard {
      * sent to each of the predefined addresses.
      */
     function distributeProtocolFee(uint256 protocolFee) internal {
-        sendViaCall(payable(marketingAddress), protocolFee * MARKETING_MAINTENANCE_ALLOCATION / MAX_BPS);
-        sendViaCall(payable(maintenanceAddress), protocolFee * MARKETING_MAINTENANCE_ALLOCATION / MAX_BPS);
-        sendViaCall(payable(dxnBuyAndBurn), protocolFee * DXNBUYBURN_ALLOCATION / MAX_BPS);
-        sendViaCall(payable(qBuyAndBurn), protocolFee * QBUYBURN_ALLOCATION / MAX_BPS);
+        sendViaCall(payable(marketingAddress), protocolFee * 2 / 100);
+        sendViaCall(payable(maintenanceAddress), protocolFee * 2 / 100);
+        sendViaCall(payable(dxnBuyAndBurn), protocolFee * 1 / 100);
+        sendViaCall(payable(qBuyAndBurn), protocolFee * 25 / 100);
     }
 
     /**

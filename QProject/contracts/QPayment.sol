@@ -1,30 +1,31 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 import "./Q.sol";
 
 contract QPayment {
-    uint256 public startTime;
-    uint256 public endTime;
-    uint256 public cycleDuration = 1 days;
-    address constant forwarder = 0x0000000000000000000000000000000000000000;
-    address constant devAddress = 0x0000000000000000000000000000000000000000;
-    address constant dxnBuyAndBurn = 0x0000000000000000000000000000000000000000;
-    address constant qBuyAndBurn = 0x0000000000000000000000000000000000000000;
-    address[] public AIAddresses;
-
-    uint256 public constant MAX_BPS = 100;
+    uint256 public immutable startTime;
+    uint256 public immutable endTime;
+    uint256 constant cycleDuration = 1 days;
     uint256[3] public feePerCycle = [5 ether, 6 ether, 7 ether]; 
+
+    address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
+    address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;
+    address public immutable marketingAddress;
+    address public immutable maintenanceAddress;
+    address[] public aiAddresses;
 
     mapping(address => bool) public aiRegisterStatus;
 
-    event AIRegisterData(address indexed AIAddress, uint256 fee, string AIName);
+    event AIRegisterData(address indexed aiAddress, uint256 fee, string aiName);
 
-    constructor() {
+    constructor(address _marketingAddress, address _maintenanceAddress) {
         startTime = block.timestamp;
         endTime = startTime + 3 days;
+        marketingAddress = _marketingAddress;
+        maintenanceAddress = _maintenanceAddress;
     }
 
-    function AIRegister(string calldata AIName) external payable {
+    function aiRegister(string calldata aiName) external payable {
         require(block.timestamp >= startTime, "Early");
         require(block.timestamp <= endTime, "Late");
 
@@ -38,8 +39,8 @@ contract QPayment {
         }
         aiRegisterStatus[msg.sender] = true;
 
-        AIAddresses.push(msg.sender);
-        emit AIRegisterData(msg.sender, fee, AIName);
+        aiAddresses.push(msg.sender);
+        emit AIRegisterData(msg.sender, fee, aiName);
     }
 
     function calculateCurrentCycle() public view returns (uint256) {
@@ -50,10 +51,10 @@ contract QPayment {
         require(block.timestamp > endTime, "Early deploy");
 
         uint256 balance = address(this).balance;
-        uint256 userPercent = balance * 10 / MAX_BPS;
-        uint256 contractPercent = balance * 90 / MAX_BPS;
+        uint256 userPercent = balance * 10 / 100;
+        uint256 contractPercent = balance * 90 / 100;
 
-        QContractAddress = address(new Q{value: contractPercent}(forwarder, devAddress, dxnBuyAndBurn, qBuyAndBurn, AIAddresses));
+        QContractAddress = address(new Q{value: contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, aiAddresses));
         sendViaCall(payable(msg.sender), userPercent);
     }
 

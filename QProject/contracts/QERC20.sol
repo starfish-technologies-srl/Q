@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
@@ -14,7 +14,7 @@ contract QERC20 is ERC20Permit {
 
     function mintReward(address account, uint256 amount) external {
         require(msg.sender == owner, "Q: Incorrect caller");
-        require(super.totalSupply() < 5010000000000000000000000, "Q: Already minted");
+        require(super.totalSupply() < 120000000000000000000000000, "Q: Already minted");
         _mint(account, amount);
     }
 }
