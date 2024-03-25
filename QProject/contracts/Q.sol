@@ -199,8 +199,8 @@ contract Q is ERC2771Context {
     /**
      * Total amount of burned ether spent on {enterCycle} transactions.
      */
-
     mapping(uint256 => uint256) public nativeBurnedPerCycle;
+
     /**
      * @dev Emitted when `account` claims an amount of `fees` in native token
      * through {claimFees} in `cycle`.
@@ -251,19 +251,24 @@ contract Q is ERC2771Context {
     );
 
     /**
-     * @dev Emitted when calling {enterCycle} function for
-     * `userAddress`  which burns `entryMultiplier` * 2500000 tokens
+     * @dev Emitted when calling {enterCycle} 
      */
-    event Burn(
+    event CycleEntry(
         address indexed userAddress,
         uint256 entryMultiplier
     );
 
+    /**
+     * @dev Emitted when calling {registerAIMiner} 
+     */
     event NewAIRegistered(
         address indexed aiMiner,
         string name
     );
 
+    /**
+     * Minimal reentrancy lock using transient storage.
+     */
     modifier nonReentrant {
         assembly {
             if tload(0) { revert(0, 0) }
@@ -332,6 +337,9 @@ contract Q is ERC2771Context {
     }
 
     /**
+     * Entry point for the Q daily auction.
+     *
+     * @param aiMiner designated AI miner
      * @param entryMultiplier multiplies the number of entries
      */
     function enterCycle(
@@ -357,14 +365,15 @@ contract Q is ERC2771Context {
         uint256 protocolFee = calculateProtocolFee(entryMultiplier);
         require(msg.value >= protocolFee , "Q: value less than protocol fee");
 
-        updateStats(_msgSender(), currentCycleMem);
+        address user = _msgSender();
+        updateStats(user, currentCycleMem);
         updateStats(aiMiner, currentCycleMem);
 
-        calculateCycleEntries(entryMultiplier, currentCycleMem, aiMiner);
+        calculateCycleEntries(entryMultiplier, currentCycleMem, aiMiner, user);
 
         cycleAccruedFees[currentCycle] += protocolFee * 70 / 100;
 
-        lastActiveCycle[_msgSender()] = currentCycle;
+        lastActiveCycle[user] = currentCycle;
         lastActiveCycle[aiMiner] = currentCycle;
 
         cycleInteractions++;
@@ -374,6 +383,7 @@ contract Q is ERC2771Context {
         if(msg.value > protocolFee) {
              sendViaCall(payable(msg.sender), msg.value - protocolFee);
         }
+        emit CycleEntry(user, entryMultiplier);
     }
 
     /**
@@ -409,21 +419,23 @@ contract Q is ERC2771Context {
         uint256 currentCycleMem = currentCycle;
 
         endCycle(currentCycleMem);
-        updateStats(_msgSender(), currentCycleMem);
 
-        uint256 reward = accRewards[_msgSender()] - accWithdrawableStake[_msgSender()];
+        address user = _msgSender();
+        updateStats(user, currentCycleMem);
+
+        uint256 reward = accRewards[user] - accWithdrawableStake[user];
         require(reward > 0, "Q: No rewards");
         require(claimAmount <= reward, "Q: Exceeds rewards");
 
-        accRewards[_msgSender()] -= claimAmount;
+        accRewards[user] -= claimAmount;
         if (lastStartedCycle == currentStartedCycle) {
             pendingStakeWithdrawal += claimAmount;
         } else {
             summedCycleStakes[currentCycleMem] = summedCycleStakes[currentCycleMem] - claimAmount;
         }
 
-        qToken.mintReward(_msgSender(), claimAmount);
-        emit RewardsClaimed(currentCycleMem, _msgSender(), claimAmount);
+        qToken.mintReward(user, claimAmount);
+        emit RewardsClaimed(currentCycleMem, user, claimAmount);
     }
 
     /**
@@ -435,19 +447,20 @@ contract Q is ERC2771Context {
     {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
+        address user = _msgSender();
 
         endCycle(currentCycleMem);
-        updateStats(_msgSender(), currentCycleMem);
+        updateStats(user, currentCycleMem);
 
-        uint256 fees = accAccruedFees[_msgSender()];
+        uint256 fees = accAccruedFees[user];
         require(fees > 0, "Q: amount is zero");
         require(claimAmount <= fees, "Q: claim amount exceeds fees");
 
-        accAccruedFees[_msgSender()] = 0;
+        accAccruedFees[user] = 0;
 
-        sendViaCall(payable(_msgSender()), fees);
+        sendViaCall(payable(user), fees);
         
-        emit FeesClaimed(getCurrentCycle(), _msgSender(), fees);
+        emit FeesClaimed(getCurrentCycle(), user, fees);
     }
 
     /**
@@ -463,9 +476,10 @@ contract Q is ERC2771Context {
     {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
+        address user = _msgSender();
 
         endCycle(currentCycleMem);
-        updateStats(_msgSender(), currentCycleMem);
+        updateStats(user, currentCycleMem);
 
         require(amount > 0, "Q: amount is zero");
         require(currentCycleMem == currentStartedCycle, "Q: Only stake during active cycle");
@@ -478,20 +492,20 @@ contract Q is ERC2771Context {
         }
 
         if (
-            (cycleToSet != accFirstStake[_msgSender()] &&
-                cycleToSet != accSecondStake[_msgSender()])
+            (cycleToSet != accFirstStake[user] &&
+                cycleToSet != accSecondStake[user])
         ) {
-            if (accFirstStake[_msgSender()] == 0) {
-                accFirstStake[_msgSender()] = cycleToSet;
-            } else if (accSecondStake[_msgSender()] == 0) {
-                accSecondStake[_msgSender()] = cycleToSet;
+            if (accFirstStake[user] == 0) {
+                accFirstStake[user] = cycleToSet;
+            } else if (accSecondStake[user] == 0) {
+                accSecondStake[user] = cycleToSet;
             }
         }
 
-        accStakeCycle[_msgSender()][cycleToSet] += amount;
+        accStakeCycle[user][cycleToSet] += amount;
 
-        qToken.safeTransferFrom(_msgSender(), address(this), amount);
-        emit Staked(cycleToSet, _msgSender(), amount);
+        qToken.safeTransferFrom(user, address(this), amount);
+        emit Staked(cycleToSet, user, amount);
     }
 
     /**
@@ -506,13 +520,14 @@ contract Q is ERC2771Context {
     {
         calculateCycle();
         uint256 currentCycleMem = currentCycle;
+        address user = _msgSender();
 
         endCycle(currentCycleMem);
-        updateStats(_msgSender(), currentCycleMem);
+        updateStats(user, currentCycleMem);
         
         require(amount > 0, "Q: amount is zero");
         require(
-            amount <= accWithdrawableStake[_msgSender()],
+            amount <= accWithdrawableStake[user],
             "Q: amount greater than withdrawable stake"
         );
 
@@ -522,11 +537,11 @@ contract Q is ERC2771Context {
             summedCycleStakes[currentCycleMem] -= amount;
         }
 
-        accWithdrawableStake[_msgSender()] -= amount;
-        accRewards[_msgSender()] -= amount;
+        accWithdrawableStake[user] -= amount;
+        accRewards[user] -= amount;
 
-        qToken.safeTransfer(_msgSender(), amount);
-        emit Unstaked(currentCycleMem, _msgSender(), amount);
+        qToken.safeTransfer(user, amount);
+        emit Unstaked(currentCycleMem, user, amount);
     }
 
     /**
@@ -608,14 +623,14 @@ contract Q is ERC2771Context {
      * Calculates entries to be added to the total of entries of the current cycle
      * and of the entrant.
      */
-    function calculateCycleEntries(uint256 batchWeight, uint256 cycle, address aiMiner) internal {
+    function calculateCycleEntries(uint256 batchWeight, uint256 cycle, address aiMiner, address user) internal {
         uint256 multiplier = getAIMinerRankMultiplier(aiMiner);
         if(multiplier > 1) {
             batchWeight *= multiplier;
         }
 
         cycleTotalEntries[cycle] += batchWeight * 100;
-        accCycleEntries[_msgSender()] += batchWeight * 95;
+        accCycleEntries[user] += batchWeight * 95;
         accCycleEntries[aiMiner] += batchWeight * 5;
     }
 
