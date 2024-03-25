@@ -12,7 +12,7 @@ contract Q is ERC2771Context {
     /**
      * Used to minimise division remainder when earned fees are calculated.
      */
-    uint256 constant SCALING_FACTOR = 1e40;
+    uint256 public constant SCALING_FACTOR = 1e40;
 
     /**
      * Contract creation timestamp.
