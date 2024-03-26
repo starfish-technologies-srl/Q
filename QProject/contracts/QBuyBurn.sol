@@ -64,20 +64,34 @@ contract QBuyBurn {
         uint256 callerPercent;
 
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
-            uint256 amount = amountToBurn;
+// If I have accumulated in the contract more than needed for a burn, I burn everything I have accumulated + the equivalent of one day out of the 50
+// I make sure to distribute the portion for that specific day out of the 50
             if(collectedAmount >= amountToBurn) {
-                collectedAmount = collectedAmount - amountToBurn;
+                collectedAmount -= amountToBurn;
+                amountETH = (amountToBurn + theFiftiethPart) * 99 / 100;
+                callerPercent = (amountToBurn + theFiftiethPart) / 100;
             } else {
-                collectedAmount = 0;
+// If the amount I want to burn is greater than one-fiftieth, I only subtract the difference from the collected amount
+                if(amountToBurn > theFiftiethPart) {
+                    if(collectedAmount >= amountToBurn - theFiftiethPart) {
+                        collectedAmount -= amountToBurn - theFiftiethPart;
+                    }
+                amountETH = amountToBurn * 99 / 100;
+                callerPercent = amountToBurn  / 100;
+// There's no need for an else statement because collectedAmount + theFiftiethPart > amountToBurn
+                } else {
+// If the value for one of the 50 days is greater than the amount I want to burn, then I burn the entire value and
+// collectedAmount remains unaffected; again, I make sure that the burn is made equivalent to that specific day out of the 50
+                amountETH = theFiftiethPart * 99 / 100;
+                callerPercent = theFiftiethPart  / 100;  
+                }
             }
-            amountETH = amount * 99 / 100;
-            callerPercent = amount / 100;
             globalCountForDays ++;
             feeAlreadyDistributed[currentCycle] = true;
         } else {
+            collectedAmount -= amountToBurn;
             amountETH = amountToBurn * 99 / 100;
             callerPercent = amountToBurn / 100;
-            collectedAmount -= amountToBurn;
         }
 
         uint256 amountOutExpected = _getQuote(uint128(amountETH));
