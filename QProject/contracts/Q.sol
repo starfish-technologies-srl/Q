@@ -12,19 +12,19 @@ contract Q is ERC2771Context {
     /**
      * Used to minimise division remainder when earned fees are calculated.
      */
-    uint256 public constant SCALING_FACTOR = 1e40;
+    uint256 constant SCALING_FACTOR = 1e40;
 
     /**
      * Contract creation timestamp.
      * Initialized in constructor.
      */
-    uint256 public immutable i_initialTimestamp;
+    uint256 immutable i_initialTimestamp;
 
     /**
      * Length of a reward distribution cycle. 
      * Initialized in contstructor to 1 day.
      */
-    uint256 public immutable i_periodDuration;
+    uint256 immutable i_periodDuration;
 
     /**
      * Reward token amount allocated for the current cycle.
@@ -83,22 +83,22 @@ contract Q is ERC2771Context {
     /**
      * 2% of protocol fees are added to the marketing funds.
      */
-    address public immutable marketingAddress;
+    address immutable marketingAddress;
 
     /**
      * 2% of protocol fees are added to the maintenance funds.
      */
-    address public immutable maintenanceAddress;
+    address immutable maintenanceAddress;
 
     /**
      * 25% of protocol fees are sent to the buy and burn of Q contract.
      */
-    address public immutable dxnBuyAndBurn;
+    address immutable dxnBuyAndBurn;
 
     /**
      * 1% of protocol fees are sent to the buy and burn of DXN contract.
      */
-    address public immutable qBuyAndBurn;
+    address immutable qBuyAndBurn;
 
     /**
      * Q Reward Token contract.
