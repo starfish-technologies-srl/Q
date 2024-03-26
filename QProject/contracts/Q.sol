@@ -313,7 +313,7 @@ contract Q is ERC2771Context {
         qBuyAndBurn = address(new QBuyBurn(address(qToken)));
         
         i_initialTimestamp = block.timestamp;
-        i_periodDuration = 2 minutes;
+        i_periodDuration = 1 days;
 
         currentRegistrationFee = 10 ether;
 
