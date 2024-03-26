@@ -50,17 +50,21 @@ contract QBuyBurn {
 
     function burnToken(uint256 amountToBurn) public {
         require(isContract(Q_WETH9_Pool), "Pool does not exist!");
-        require(block.timestamp > i_initialTimestamp + 1 days,"Early burn!");
+        require(block.timestamp > i_initialTimestamp + 1 days, "Early burn!");
         require(amountToBurn >= 0.1 ether, "Min 0.1 ETH");
+
         uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
         uint256 amountToCompare = collectedAmount;
+
         if(globalCountForDays < 50) 
             amountToCompare = collectedAmount + theFiftiethPart;
         require(amountToCompare >= amountToBurn, "Insufficient funds!");
+
         uint256 currentCycle = getCurrentCycle();
         collectedAmount -= amountToBurn;
         uint256 amountETH;
         uint256 callerPercent;
+
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
             uint256 amount = amountToBurn + theFiftiethPart;
             amountETH = amount * 99 / 100;

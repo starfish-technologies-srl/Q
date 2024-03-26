@@ -6,7 +6,7 @@ contract QPayment {
     uint256 public immutable startTime;
     uint256 public immutable endTime;
     uint256 constant cycleDuration = 1 days;
-    uint256[3] public feePerCycle = [5 ether, 6 ether, 7 ether]; 
+    uint256[3] feePerCycle = [5 ether, 6 ether, 7 ether]; 
 
     address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
     address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;

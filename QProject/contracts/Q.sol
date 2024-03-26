@@ -104,7 +104,7 @@ contract Q is ERC2771Context {
      * Q Reward Token contract.
      * Initialized in constructor.
      */
-    QERC20 public qToken;
+    QERC20 public immutable qToken;
     
     /**
      * The amount of entries an account has during given cycle.
@@ -291,7 +291,7 @@ contract Q is ERC2771Context {
     modifier gasWrapper() {
         uint256 startGas = gasleft();
         _;
-        uint256 gasConsumed = startGas - gasleft();
+        uint256 gasConsumed = startGas - gasleft() + 23362;
         nativeBurnedPerCycle[currentCycle] += gasConsumed * block.basefee;
     }
 
@@ -313,7 +313,7 @@ contract Q is ERC2771Context {
         qBuyAndBurn = address(new QBuyBurn(address(qToken)));
         
         i_initialTimestamp = block.timestamp;
-        i_periodDuration = 1 days;
+        i_periodDuration = 2 minutes;
 
         currentRegistrationFee = 10 ether;
 
@@ -736,21 +736,22 @@ contract Q is ERC2771Context {
             accCycleEntries[account] = 0;
         }
 
+        uint256 lastStartedCyclePlusOne = lastStartedCycle + 1;
         if (
             cycle > lastStartedCycle &&
-            lastFeeUpdateCycle[account] != lastStartedCycle + 1
+            lastFeeUpdateCycle[account] != lastStartedCyclePlusOne
         ) {
             accAccruedFees[account] =
                 accAccruedFees[account] +
                 (
                     (accRewards[account] * 
-                        (cycleFeesPerStakeSummed[lastStartedCycle + 1] - 
+                        (cycleFeesPerStakeSummed[lastStartedCyclePlusOne] - 
                             cycleFeesPerStakeSummed[lastFeeUpdateCycle[account]]
                         )
                     )
                 ) /
                 SCALING_FACTOR;
-            lastFeeUpdateCycle[account] = lastStartedCycle + 1;
+            lastFeeUpdateCycle[account] = lastStartedCyclePlusOne;
         }
 
         if (
@@ -761,11 +762,11 @@ contract Q is ERC2771Context {
 
             accRewards[account] += unlockedFirstStake;
             accWithdrawableStake[account] += unlockedFirstStake;
-            if (lastStartedCycle + 1 > accFirstStake[account]) {
+            if (lastStartedCyclePlusOne > accFirstStake[account]) {
                 accAccruedFees[account] = accAccruedFees[account] + 
                 (
                     (accStakeCycle[account][accFirstStake[account]] * 
-                        (cycleFeesPerStakeSummed[lastStartedCycle + 1] - 
+                        (cycleFeesPerStakeSummed[lastStartedCyclePlusOne] - 
                             cycleFeesPerStakeSummed[accFirstStake[account]]
                         )
                     )
@@ -782,11 +783,11 @@ contract Q is ERC2771Context {
                     accRewards[account] += unlockedSecondStake;
                     accWithdrawableStake[account] += unlockedSecondStake;
                     
-                    if (lastStartedCycle + 1 > accSecondStake[account]) {
+                    if (lastStartedCyclePlusOne > accSecondStake[account]) {
                         accAccruedFees[account] = accAccruedFees[account] + 
                         (
                             (accStakeCycle[account][accSecondStake[account]] * 
-                                (cycleFeesPerStakeSummed[lastStartedCycle + 1] - 
+                                (cycleFeesPerStakeSummed[lastStartedCyclePlusOne] - 
                                     cycleFeesPerStakeSummed[accSecondStake[account]]
                                 )
                             )
