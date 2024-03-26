@@ -55,18 +55,21 @@ contract QBuyBurn {
 
         uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
         uint256 amountToCompare = collectedAmount;
-
-        if(globalCountForDays < 50) 
+        uint256 currentCycle = getCurrentCycle();
+        if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) 
             amountToCompare = collectedAmount + theFiftiethPart;
         require(amountToCompare >= amountToBurn, "Insufficient funds!");
 
-        uint256 currentCycle = getCurrentCycle();
-        collectedAmount -= amountToBurn;
         uint256 amountETH;
         uint256 callerPercent;
 
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
-            uint256 amount = amountToBurn + theFiftiethPart;
+            uint256 amount = amountToBurn;
+            if(collectedAmount >= amountToBurn) {
+                collectedAmount = collectedAmount - amountToBurn;
+            } else {
+                collectedAmount = 0;
+            }
             amountETH = amount * 99 / 100;
             callerPercent = amount / 100;
             globalCountForDays ++;
@@ -74,6 +77,7 @@ contract QBuyBurn {
         } else {
             amountETH = amountToBurn * 99 / 100;
             callerPercent = amountToBurn / 100;
+            collectedAmount -= amountToBurn;
         }
 
         uint256 amountOutExpected = _getQuote(uint128(amountETH));
