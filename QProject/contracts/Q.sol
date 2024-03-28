@@ -681,7 +681,7 @@ contract Q is ERC2771Context {
         currentCycleReward = reward;
         rewardPerCycle[cycle] = reward;
 
-        summedCycleStakes[cycle] += currentCycleReward;
+        summedCycleStakes[cycle] += reward;
             
         if(currentBurnDecrease < 20000) {
             currentBurnDecrease++;
