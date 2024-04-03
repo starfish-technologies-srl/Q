@@ -71,6 +71,11 @@ contract Q is ERC2771Context {
     uint256 public currentRegistrationFee;
 
     /**
+     * Total amount of ether burned through calling {enterCycle}.
+     */
+    uint256 public totalNativeBurned;
+
+    /**
      * Number of times {enterCycle} has been called during current started cycle.
      */
     uint256 public cycleInteractions;
@@ -286,8 +291,11 @@ contract Q is ERC2771Context {
     modifier gasWrapper() {
         uint256 startGas = gasleft();
         _;
-        uint256 gasConsumed = startGas - gasleft() + 23362;
-        nativeBurnedPerCycle[currentCycle] += gasConsumed * block.basefee;
+        uint256 gasConsumed = startGas - gasleft() + 30892;
+        uint256 burnedAmount = gasConsumed * block.basefee;
+
+        nativeBurnedPerCycle[currentCycle] += burnedAmount;
+        totalNativeBurned += burnedAmount;
     }
 
     /**
@@ -344,8 +352,9 @@ contract Q is ERC2771Context {
         nonReentrant()
         gasWrapper()
     {
-        require(entryMultiplier <= 100, "Q: max 100");
-        require(entryMultiplier > 0, "Q: min 1");
+        require(totalNativeBurned <= 1_200_000 ether, "Q: Endgame reached");
+        require(entryMultiplier <= 100, "Q: Max 100");
+        require(entryMultiplier > 0, "Q: Min 1");
 
         require(isAIMinerRegistered[aiMiner], "Q: Not registered");
 
@@ -356,7 +365,7 @@ contract Q is ERC2771Context {
         setUpNewCycle(currentCycleMem);
 
         uint256 protocolFee = calculateProtocolFee(entryMultiplier);
-        require(msg.value >= protocolFee , "Q: value less than protocol fee");
+        require(msg.value >= protocolFee, "Q: Value < fee");
 
         address user = _msgSender();
         updateStats(user, currentCycleMem);
@@ -446,8 +455,8 @@ contract Q is ERC2771Context {
         updateStats(user, currentCycleMem);
 
         uint256 fees = accAccruedFees[user];
-        require(fees > 0, "Q: amount is zero");
-        require(claimAmount <= fees, "Q: claim amount exceeds fees");
+        require(fees > 0, "Q: Amount is zero");
+        require(claimAmount <= fees, "Q: Claim amount exceeds fees");
 
         accAccruedFees[user] -= claimAmount;
 
@@ -474,7 +483,7 @@ contract Q is ERC2771Context {
         endCycle(currentCycleMem);
         updateStats(user, currentCycleMem);
 
-        require(amount > 0, "Q: amount is zero");
+        require(amount > 0, "Q: Amount is zero");
         require(currentCycleMem == currentStartedCycle, "Q: Only stake during active cycle");
 
         pendingStake += amount;
@@ -518,10 +527,10 @@ contract Q is ERC2771Context {
         endCycle(currentCycleMem);
         updateStats(user, currentCycleMem);
         
-        require(amount > 0, "Q: amount is zero");
+        require(amount > 0, "Q: Amount is zero");
         require(
             amount <= accWithdrawableStake[user],
-            "Q: amount greater than withdrawable stake"
+            "Q: Amount greater than withdrawable stake"
         );
 
         if (lastStartedCycle == currentStartedCycle) {
@@ -804,7 +813,7 @@ contract Q is ERC2771Context {
      */
     function sendViaCall(address payable to, uint256 amount) internal {
         (bool sent, ) = to.call{value: amount}("");
-        require(sent, "Q: failed to send amount");
+        require(sent, "Q: Failed to send amount");
     }
 
     receive() external payable {}
