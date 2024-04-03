@@ -55,26 +55,35 @@ contract QBuyBurn {
 
         uint256 theFiftiethPart = (firstCycleReceivedEther / 50);
         uint256 amountToCompare = collectedAmount;
-
-        if(globalCountForDays < 50) 
-            amountToCompare = collectedAmount + theFiftiethPart;
-        require(amountToCompare >= amountToBurn, "Insufficient funds!");
-
         uint256 currentCycle = getCurrentCycle();
-        collectedAmount -= amountToBurn;
+
         uint256 amountETH;
         uint256 callerPercent;
 
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
-            uint256 amount = amountToBurn + theFiftiethPart;
-            amountETH = amount * 99 / 100;
-            callerPercent = amount / 100;
+            amountToCompare = collectedAmount + theFiftiethPart;
+            require(amountToCompare >= amountToBurn, "Insufficient funds!");
+            
+            if(collectedAmount >= amountToBurn) {
+                collectedAmount -= amountToBurn;
+                amountToBurn += theFiftiethPart;
+            } else {
+                if(amountToBurn > theFiftiethPart) {
+                    if(collectedAmount >= amountToBurn - theFiftiethPart) {
+                        collectedAmount -= amountToBurn - theFiftiethPart;
+                    }
+                } else {
+                amountToBurn = theFiftiethPart;
+                }
+            }
             globalCountForDays ++;
             feeAlreadyDistributed[currentCycle] = true;
         } else {
-            amountETH = amountToBurn * 99 / 100;
-            callerPercent = amountToBurn / 100;
+            require(amountToCompare >= amountToBurn, "Insufficient funds!");
+            collectedAmount -= amountToBurn;
         }
+        amountETH = amountToBurn * 99 / 100;
+        callerPercent = amountToBurn / 100;
 
         uint256 amountOutExpected = _getQuote(uint128(amountETH));
         uint256 minTokenAmount = (amountOutExpected * 90) / 100;
