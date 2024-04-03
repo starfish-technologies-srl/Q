@@ -63,25 +63,16 @@ contract QBuyBurn {
         if(globalCountForDays < 50 && !feeAlreadyDistributed[currentCycle]) {
             amountToCompare = collectedAmount + theFiftiethPart;
             require(amountToCompare >= amountToBurn, "Insufficient funds!");
-            // If I have accumulated in the contract more than needed for a burn, I burn everything
-            // I have accumulated + the equivalent of one day out of the 50
-            // I make sure to distribute the portion for that specific day out of the 50
+            
             if(collectedAmount >= amountToBurn) {
                 collectedAmount -= amountToBurn;
                 amountToBurn += theFiftiethPart;
             } else {
-                // If the amount I want to burn is greater than one-fiftieth,
-                // I only subtract the difference from the collected amount
                 if(amountToBurn > theFiftiethPart) {
                     if(collectedAmount >= amountToBurn - theFiftiethPart) {
                         collectedAmount -= amountToBurn - theFiftiethPart;
                     }
-                // There's no need for an else statement because 
-                // collectedAmount + theFiftiethPart > amountToBurn
                 } else {
-                // If the value for one of the 50 days is greater than the amount I want to burn,
-                // then I burn the entire value and collectedAmount remains unaffected 
-                // I make sure that the burn is made equivalent to that specific day out of the 50
                 amountToBurn = theFiftiethPart;
                 }
             }

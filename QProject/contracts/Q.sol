@@ -27,11 +27,6 @@ contract Q is ERC2771Context {
     uint256 immutable i_periodDuration;
 
     /**
-     * Reward token amount allocated for the current cycle.
-     */
-    uint256 public currentCycleReward;
-
-    /**
      * Helper variable to store pending stake amount.   
      */
     uint256 public pendingStake;
@@ -330,9 +325,7 @@ contract Q is ERC2771Context {
     function setAiMintersAddresses(address[] memory AIAddresses) internal {
         uint256 numberOfAIs = AIAddresses.length;
         for(uint256 i=0; i < numberOfAIs; i++) {
-            if(!isAIMinerRegistered[AIAddresses[i]]) {
-                isAIMinerRegistered[AIAddresses[i]] = true;
-            }
+            isAIMinerRegistered[AIAddresses[i]] = true;
         }
     }
 
@@ -456,11 +449,11 @@ contract Q is ERC2771Context {
         require(fees > 0, "Q: amount is zero");
         require(claimAmount <= fees, "Q: claim amount exceeds fees");
 
-        accAccruedFees[user] = 0;
+        accAccruedFees[user] -= claimAmount;
 
-        sendViaCall(payable(user), fees);
+        sendViaCall(payable(user), claimAmount);
         
-        emit FeesClaimed(getCurrentCycle(), user, fees);
+        emit FeesClaimed(getCurrentCycle(), user, claimAmount);
     }
 
     /**
@@ -678,12 +671,10 @@ contract Q is ERC2771Context {
         uint256 reward = nativeBurnedPerCycle[cycle] * 100 - 
             nativeBurnedPerCycle[cycle] * currentBurnDecrease / 200;
 
-        currentCycleReward = reward;
         rewardPerCycle[cycle] = reward;
-
         summedCycleStakes[cycle] += reward;
             
-        if(currentBurnDecrease < 20000) {
+        if(currentBurnDecrease < 19999) {
             currentBurnDecrease++;
         }
     }
@@ -700,21 +691,21 @@ contract Q is ERC2771Context {
 
             cycleInteractions = 0;
 
-            summedCycleStakes[currentStartedCycle] += summedCycleStakes[lastStartedCycle];
+            summedCycleStakes[cycle] += summedCycleStakes[lastStartedCycle];
             
             if (pendingStake != 0) {
-                summedCycleStakes[currentStartedCycle] += pendingStake;
+                summedCycleStakes[cycle] += pendingStake;
                 pendingStake = 0;
             }
             
             if (pendingStakeWithdrawal != 0) {
-                summedCycleStakes[currentStartedCycle] -= pendingStakeWithdrawal;
+                summedCycleStakes[cycle] -= pendingStakeWithdrawal;
                 pendingStakeWithdrawal = 0;
             }
             
             emit NewCycleStarted(
                 cycle,
-                summedCycleStakes[currentStartedCycle]
+                summedCycleStakes[cycle]
             );
         }
     }
