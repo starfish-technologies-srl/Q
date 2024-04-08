@@ -267,6 +267,15 @@ contract Q is ERC2771Context {
     );
 
     /**
+     * @dev Emitted when calling {addFundsForAIMiner} 
+     */
+    event AddFundsForMiner(
+        address indexed user,
+        address indexed aiMiner,
+        uint256 amount,
+        uint256 cycle
+    );
+    /**
      * Minimal reentrancy lock using transient storage.
      */
     modifier nonReentrant {
@@ -619,6 +628,8 @@ contract Q is ERC2771Context {
             currentCycleLowestBalance == 0) {
             lowestCycleBalance[cycle] = currentBalancePlusValue;
         }
+
+        emit AddFundsForMiner(msg.sender, aiMiner, msg.value, cycle);
     }
 
     /**
