@@ -28,7 +28,7 @@ contract QBuyBurn {
 
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-    address public constant SWAP_ROUTER = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+    address public constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     mapping(uint256 => bool) public feeAlreadyDistributed;
 
@@ -103,6 +103,7 @@ contract QBuyBurn {
                 tokenOut: Q,
                 fee: poolFee,
                 recipient: BURN_ADDRESS,
+                deadline: block.timestamp,
                 amountIn: amountIn,
                 amountOutMinimum: amountOutMinimum,
                 sqrtPriceLimitX96: 0
