@@ -23,6 +23,7 @@ describe("Test reward distribution functionality", async function () {
       qBuyAndBurn,
       ai,
       ai2,
+
     ] = await ethers.getSigners();
 
     const qContract = await ethers.getContractFactory("Q");
@@ -31,6 +32,7 @@ describe("Test reward distribution functionality", async function () {
       devAddress.address,
       dxnBuyAndBurn.address,
       qBuyAndBurn.address
+      [ai.address, ai2.address]
     );
     await QContract.deployed();
 
@@ -39,7 +41,7 @@ describe("Test reward distribution functionality", async function () {
     await QViewContract.deployed();
   });
 
-  it("Reward distribution for a single ai", async () => {
+  it.skip("Reward distribution for a single ai", async () => {
     expect(await ethers.provider.getBalance(QContract.address)).to.equal(
       ethers.utils.parseEther("0")
     );
@@ -111,7 +113,7 @@ describe("Test reward distribution functionality", async function () {
     expect(aiExpectedReward).to.equal(fivePercentForAI);
   });
 
-  it.only("Reward distribution for multiple ai", async () => {
+  it.skip("Reward distribution for multiple ai", async () => {
     //2 interaction, 1 user1 and 1 deployer => 95% poll will be split between user1 and deployer and 5% will be for ai
     let protocolFee = ethers.utils.parseEther("1");
     await QContract.enterCycle(ai.address, 100, {

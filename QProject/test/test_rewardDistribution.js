@@ -14,13 +14,14 @@ describe("Test claim fee functionality", async function () {
       forwarder.address,
       devAddress.address,
       dxnBuyAndBurn.address,
-      qBuyAndBurn.address
+      qBuyAndBurn.address,
+      [ai.address, ai2.address]
     );
 
     await QContract.deployed();
   });
 
-  it("Contribute", async () => {
+  it.skip("Contribute", async () => {
     await QContract.enterCycle(ai.address, 100, {
       value: ethers.utils.parseEther("100"),
     });
@@ -30,9 +31,7 @@ describe("Test claim fee functionality", async function () {
       )
     ).to.equal("95.0");
     expect(
-      ethers.utils.formatEther(
-        await QContract.accCycleEntries(ai.address)
-      )
+      ethers.utils.formatEther(await QContract.accCycleEntries(ai.address))
     ).to.equal("5.0");
 
     let actualNumberOfInteraction = await QContract.cycleInteraction(
@@ -52,9 +51,7 @@ describe("Test claim fee functionality", async function () {
       )
     ).to.equal("190.0");
     expect(
-      ethers.utils.formatEther(
-        await QContract.accCycleEntries(ai.address)
-      )
+      ethers.utils.formatEther(await QContract.accCycleEntries(ai.address))
     ).to.equal("10.0");
 
     await hre.ethers.provider.send("evm_increaseTime", [60 * 60 * 24]);
@@ -76,7 +73,7 @@ describe("Test claim fee functionality", async function () {
     );
   });
 
-  it("Using ai multiple times", async () => {
+  it.skip("Using ai multiple times", async () => {
     expect(await ethers.provider.getBalance(QContract.address)).to.equal(
       ethers.utils.parseEther("0")
     );

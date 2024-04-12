@@ -5,14 +5,21 @@ const { ethers } = require("hardhat");
 describe("Test AIRegister function", async function () {
   let deployer, forwarder, devAddress, dxnBuyAndBurn, QPayment;
   beforeEach("Set enviroment", async () => {
-    [deployer, forwarder, devAddress, dxnBuyAndBurn] = await ethers.getSigners();
+    [
+      deployer,
+      forwarder,
+      devAddress,
+      dxnBuyAndBurn,
+      maintenanceAddress,
+      marketingAddress,
+    ] = await ethers.getSigners();
 
     const qPayment = await ethers.getContractFactory("QPayment");
-    QPayment = await qPayment.deploy();
+    QPayment = await qPayment.deploy(marketingAddress.address,maintenanceAddress.address);
     await QPayment.deployed();
   });
 
-  it("AIRegister function", async () => {
+  it.skip("AIRegister function", async () => {
     console.log(QPayment.address);
   });
 

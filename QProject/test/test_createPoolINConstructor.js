@@ -13,8 +13,8 @@ describe("Test createPoolFromConstructor function", async function () {
     await QERC20.deployed();
   });
 
-  it("Test mint function", async () => {
-    console.log(await QERC20.totalSupply())
+  it.skip("Test mint function", async () => {
+    console.log(await QERC20.totalSupply());
     console.log(await QERC20.balanceOf(QERC20.address));
   });
 });

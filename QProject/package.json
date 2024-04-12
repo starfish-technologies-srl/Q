@@ -9,6 +9,7 @@
     "hardhat": "^2.19.5"
   },
   "dependencies": {
+    "@nomicfoundation/edr-linux-x64-gnu": "^0.3.4",
     "@openzeppelin/contracts": "^4.6.0",
     "@uniswap/v3-periphery": "github:Uniswap/v3-periphery#0.8",
     "ethers": "^5.7.2"
