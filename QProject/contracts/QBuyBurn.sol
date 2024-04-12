@@ -49,6 +49,7 @@ contract QBuyBurn {
     }
 
     function burnToken(uint256 amountToBurn) public {
+        require(!isContract(msg.sender),"Use EOA!");
         require(isContract(Q_WETH9_Pool), "Pool does not exist!");
         require(block.timestamp > i_initialTimestamp + 1 days, "Early burn!");
         require(amountToBurn >= 0.1 ether, "Min 0.1 ETH");
