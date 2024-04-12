@@ -91,12 +91,12 @@ contract Q is ERC2771Context {
     address immutable maintenanceAddress;
 
     /**
-     * 25% of protocol fees are sent to the buy and burn of Q contract.
+     * 1% of protocol fees are sent to the buy and burn of DXN contract.
      */
     address immutable dxnBuyAndBurn;
 
     /**
-     * 1% of protocol fees are sent to the buy and burn of DXN contract.
+     * 25% of protocol fees are sent to the buy and burn of Q contract.
      */
     address immutable qBuyAndBurn;
 
