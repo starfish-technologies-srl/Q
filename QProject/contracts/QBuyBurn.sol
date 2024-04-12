@@ -82,8 +82,8 @@ contract QBuyBurn {
             require(amountToCompare >= amountToBurn, "Insufficient funds!");
             collectedAmount -= amountToBurn;
         }
-        amountETH = amountToBurn * 99 / 100;
         callerPercent = amountToBurn / 100;
+        amountETH = amountToBurn - callerPercent;
 
         uint256 amountOutExpected = _getQuote(uint128(amountETH));
         uint256 minTokenAmount = (amountOutExpected * 90) / 100;

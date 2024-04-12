@@ -52,7 +52,7 @@ contract QPayment {
 
         uint256 balance = address(this).balance;
         uint256 userPercent = balance * 10 / 100;
-        uint256 contractPercent = balance * 90 / 100;
+        uint256 contractPercent = balance - userPercent;
 
         QContractAddress = address(new Q{value: contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, aiAddresses));
         sendViaCall(payable(msg.sender), userPercent);
