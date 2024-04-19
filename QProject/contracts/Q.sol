@@ -263,7 +263,8 @@ contract Q is ERC2771Context {
      */
     event NewAIRegistered(
         address indexed aiMiner,
-        string name
+        string name,
+        uint256 currentRegistrationFee
     );
 
     /**
@@ -415,7 +416,7 @@ contract Q is ERC2771Context {
         }
 
         cycleAccruedFees[currentStartedCycle] += currentRegistrationFee;
-        emit NewAIRegistered(aiMiner, name);
+        emit NewAIRegistered(aiMiner, name, currentRegistrationFee);
     }
 
     /**
