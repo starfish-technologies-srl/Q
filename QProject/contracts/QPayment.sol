@@ -12,6 +12,7 @@ contract QPayment {
     address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;
     address public immutable marketingAddress;
     address public immutable maintenanceAddress;
+    address public qContractAddress;
     address[] public aiAddresses;
 
     mapping(address => bool) public aiRegisterStatus;
@@ -47,14 +48,14 @@ contract QPayment {
         return (block.timestamp - startTime) / cycleDuration;
     }
 
-    function deployQContract() external returns (address QContractAddress) {
+    function deployQContract() external {
         require(block.timestamp > endTime, "Early deploy");
 
         uint256 balance = address(this).balance;
         uint256 userPercent = balance * 10 / 100;
         uint256 contractPercent = balance - userPercent;
 
-        QContractAddress = address(new Q{value: contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, aiAddresses));
+        qContractAddress = address(new Q{value: contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, aiAddresses));
         sendViaCall(payable(msg.sender), userPercent);
     }
 
