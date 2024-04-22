@@ -81,14 +81,9 @@ contract Q is ERC2771Context {
     uint256 public cycleInteractions;
 
     /**
-     * 2% of protocol fees are added to the marketing funds.
+     * 2% of protocol fees are added to the devFee funds.
      */
-    address immutable marketingAddress;
-
-    /**
-     * 2% of protocol fees are added to the maintenance funds.
-     */
-    address immutable maintenanceAddress;
+    address immutable devFee;
 
     /**
      * 1% of protocol fees are sent to the buy and burn of DXN contract.
@@ -313,13 +308,11 @@ contract Q is ERC2771Context {
      */
     constructor(
         address forwarder,
-        address _marketingAddress,
-        address _maintenanceAddress,
+        address _devFee,
         address _dxnBuyAndBurn,
         address[] memory AIRegisteredAddresses
     ) ERC2771Context(forwarder) payable {
-        marketingAddress = _marketingAddress;
-        maintenanceAddress = _maintenanceAddress;
+        devFee = _devFee;
 
         qToken = new QERC20();
         dxnBuyAndBurn = _dxnBuyAndBurn;
@@ -605,8 +598,7 @@ contract Q is ERC2771Context {
      * sent to each of the predefined addresses.
      */
     function distributeProtocolFee(uint256 protocolFee) internal {
-        sendViaCall(payable(marketingAddress), protocolFee * 2 / 100);
-        sendViaCall(payable(maintenanceAddress), protocolFee * 2 / 100);
+        sendViaCall(payable(devFee), protocolFee * 4 / 100);
         sendViaCall(payable(dxnBuyAndBurn), protocolFee * 1 / 100);
         sendViaCall(payable(qBuyAndBurn), protocolFee * 25 / 100);
     }

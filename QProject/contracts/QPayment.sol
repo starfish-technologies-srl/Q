@@ -10,8 +10,7 @@ contract QPayment {
 
     address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
     address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;
-    address public marketingAddress;
-    address public maintenanceAddress;
+    address public devFee;
     address public qContractAddress;
     address[] public aiAddresses;
 
@@ -19,11 +18,10 @@ contract QPayment {
 
     event AIRegisterData(address indexed aiAddress, uint256 fee, string aiName);
 
-    constructor(address _marketingAddress, address _maintenanceAddress) {
+    constructor(address _devFee) {
         startTime = block.timestamp;
         endTime = startTime + 3 days;
-        marketingAddress = _marketingAddress;
-        maintenanceAddress = _maintenanceAddress;
+        devFee = _devFee;
     }
 
     function aiRegister(string calldata aiName) external payable {
@@ -55,7 +53,7 @@ contract QPayment {
         uint256 userPercent = balance * 10 / 100;
         uint256 contractPercent = balance - userPercent;
 
-        qContractAddress = address(new Q{value: contractPercent}(forwarder, marketingAddress, maintenanceAddress, dxnBuyAndBurn, aiAddresses));
+        qContractAddress = address(new Q{value: contractPercent}(forwarder, devFee, dxnBuyAndBurn, aiAddresses));
         sendViaCall(payable(msg.sender), userPercent);
     }
 
