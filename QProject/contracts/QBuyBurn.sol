@@ -48,7 +48,7 @@ contract QBuyBurn {
         Q = _qAddress;
     }
 
-    function burnToken(uint256 amountToBurn) public {
+    function burnToken(uint256 amountToBurn, uint256 deadline) public {
         require(!isContract(msg.sender),"Use EOA!");
         require(isContract(Q_WETH9_Pool), "Pool does not exist!");
         require(block.timestamp > i_initialTimestamp + 1 days, "Early burn!");
@@ -90,20 +90,20 @@ contract QBuyBurn {
         uint256 minTokenAmount = (amountOutExpected * 90) / 100;
         require(minTokenAmount > 0, "Min > 0");
 
-        _swap(minTokenAmount, amountETH);
+        _swap(minTokenAmount, amountETH, deadline);
 
         (bool success,) = payable(msg.sender).call{value: callerPercent}("");
         require(success, "Transfer failed.");
     }
 
-    function _swap(uint256 amountOutMinimum, uint256 amountIn) private {
+    function _swap(uint256 amountOutMinimum, uint256 amountIn, uint256 deadline) private {
         ISwapRouterMinimal.ExactInputSingleParams memory params =
             ISwapRouterMinimal.ExactInputSingleParams({
                 tokenIn: WETH9,
                 tokenOut: Q,
                 fee: poolFee,
                 recipient: BURN_ADDRESS,
-                deadline: block.timestamp,
+                deadline: deadline,
                 amountIn: amountIn,
                 amountOutMinimum: amountOutMinimum,
                 sqrtPriceLimitX96: 0
