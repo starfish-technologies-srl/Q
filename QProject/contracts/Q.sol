@@ -405,7 +405,7 @@ contract Q is ERC2771Context {
             sendViaCall(payable(msg.sender), msg.value - registrationFee);
         }
 
-        cycleAccruedFees[currentStartedCycle] += currentRegistrationFee;
+        cycleAccruedFees[currentStartedCycle] += registrationFee;
         emit NewAIRegistered(aiMiner, name);
     }
 
