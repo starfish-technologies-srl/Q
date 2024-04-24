@@ -48,6 +48,7 @@ contract QPayment {
 
     function deployQContract() external {
         require(block.timestamp > endTime, "Early deploy");
+        require(qContractAddress == address(0),"Already deployed");
 
         uint256 balance = address(this).balance;
         uint256 userPercent = balance * 10 / 100;
