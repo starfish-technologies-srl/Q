@@ -121,3 +121,11 @@ lastActiveCycle.json
 lastId.json
 meta-config-unreveal.json
 meta-config.json
+
+#foundry
+
+.deps/npm
+.states/
+out/
+cache_forge/
+compiler_config.json
