@@ -8,6 +8,7 @@ contract QPayment {
     uint256 constant cycleDuration = 1 days;
     uint256[3] feePerCycle = [5 ether, 6 ether, 7 ether]; 
 
+    address constant nxdDSV = 0xE05430D42842C7B757E5633D19ca65350E01aE11;
     address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
     address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;
     address public devFee;
@@ -30,16 +31,18 @@ contract QPayment {
 
         uint256 currentCycle = calculateCurrentCycle();
         uint256 fee = feePerCycle[currentCycle];
+        
         require(msg.value >= fee, "Fee low");
         require(!aiRegisterStatus[msg.sender], "Registered");
+
+        aiRegisterStatus[msg.sender] = true;
+        aiAddresses.push(msg.sender);
+
+        emit AIRegisterData(msg.sender, fee, aiName);
 
         if (msg.value > fee) {
             sendViaCall(payable(msg.sender), msg.value - fee);
         }
-        aiRegisterStatus[msg.sender] = true;
-
-        aiAddresses.push(msg.sender);
-        emit AIRegisterData(msg.sender, fee, aiName);
     }
 
     function calculateCurrentCycle() public view returns (uint256) {
@@ -54,7 +57,7 @@ contract QPayment {
         uint256 userPercent = balance * 10 / 100;
         uint256 contractPercent = balance - userPercent;
 
-        qContractAddress = address(new Q{value: contractPercent}(forwarder, devFee, dxnBuyAndBurn, aiAddresses));
+        qContractAddress = address(new Q{value: contractPercent}(forwarder, devFee, dxnBuyAndBurn, nxdDSV, aiAddresses));
         sendViaCall(payable(msg.sender), userPercent);
     }
 
