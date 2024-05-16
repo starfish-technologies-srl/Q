@@ -328,7 +328,7 @@ contract Q is ERC2771Context {
         i_initialTimestamp = block.timestamp;
         i_periodDuration = 1 days;
 
-        currentRegistrationFee = 10 ether;
+        currentRegistrationFee = 0.000001 ether;
 
         uint256 stakerRegistrationFees = msg.value * 75 / 100;
 
@@ -584,7 +584,7 @@ contract Q is ERC2771Context {
      * Calculates the protocol fee for entering the current cycle.
      */
     function calculateProtocolFee(uint256 entryMultiplier) internal view returns(uint256 protocolFee) {
-        protocolFee = (0.01 ether * entryMultiplier * (1000  + cycleInteractions)) / 1000;
+        protocolFee = (0.000001 ether * entryMultiplier * (1000  + cycleInteractions)) / 1000;
     }
 
     /**
@@ -624,7 +624,7 @@ contract Q is ERC2771Context {
         uint256 cycle = currentStartedCycle;
         uint256 currentBalancePlusValue = aiMinerBalancePerCycle[aiMiner][cycle] + msg.value;
 
-        require(currentBalancePlusValue >= 0.1 ether, "Q: Min. threshold balance not met");
+        require(currentBalancePlusValue >= 0.00000001 ether, "Q: Min. threshold balance not met");
 
         aiMinerBalancePerCycle[aiMiner][cycle] += msg.value;
         cycleAccruedFees[cycle] += msg.value;

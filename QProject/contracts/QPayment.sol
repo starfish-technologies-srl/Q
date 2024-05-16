@@ -5,8 +5,8 @@ import "./Q.sol";
 contract QPayment {
     uint256 public startTime;
     uint256 public endTime;
-    uint256 constant cycleDuration = 1 days;
-    uint256[3] feePerCycle = [5 ether, 6 ether, 7 ether]; 
+    uint256 constant cycleDuration = 1 minutes;
+    uint256[3] feePerCycle = [0.000005 ether, 0.000006 ether, 0.000007 ether]; 
 
     address constant nxdDSV = 0xE05430D42842C7B757E5633D19ca65350E01aE11;
     address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
@@ -21,7 +21,7 @@ contract QPayment {
 
     constructor(address _devFee) {
         startTime = block.timestamp;
-        endTime = startTime + 3 days;
+        endTime = startTime + 3 minutes;
         devFee = _devFee;
     }
 
