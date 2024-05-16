@@ -1,13 +1,13 @@
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-
-import "../contracts/QPayment.sol";
 import "forge-std/console.sol";
+import {Test} from "forge-std/Test.sol";
+import {QPayment} from "../contracts/QPayment.sol";
+import {Q} from "../contracts/Q.sol";
+import {QPaymentHandler} from "./handlers/QPaymentHandler.sol";
 
 contract QPaymentTest is Test {
     QPayment public qPayment;
-    HandleAIRegistration registrationHandler;
     address public user;
     address public paymentDeployer;
 
@@ -17,10 +17,9 @@ contract QPaymentTest is Test {
     function setUp() public {
         paymentDeployer = makeAddr("paymentDeployer");
         qPayment = new QPayment(paymentDeployer);
-        registrationHandler = new HandleAIRegistration(qPayment);
+        
         user = makeAddr("user");
         vm.deal(user, 6 ether);
-        targetContract(address(registrationHandler));
     }
 
     function test_DevFeeAddrSet() public view {
@@ -37,6 +36,70 @@ contract QPaymentTest is Test {
         assertEq(address(qPayment).balance, 5 ether);
         assertEq(qPayment.aiRegisterStatus(user), true);
         assertEq(qPayment.aiAddresses(0), user);
+    }
+
+    function test_QContractDeployment() public {
+        qPayment.aiRegister{value: 5 ether}("name");
+
+        vm.startPrank(user);
+        qPayment.aiRegister{value: 5 ether}("name");
+
+        uint256 userBalanceBeforeDeployment = user.balance;
+
+        vm.warp(qPayment.endTime() + 1);
+        qPayment.deployQContract();
+
+        Q qContract = Q(payable(qPayment.qContractAddress()));
+
+        assertEq(user.balance, userBalanceBeforeDeployment + 1 ether);
+        assertEq(address(qContract).balance, 6.75 ether);
+        assertEq(qContract.cycleAccruedFees(0), 6.75 ether);
+        assertEq(qContract.isAIMinerRegistered(address(this)), true);
+        assertEq(qContract.isAIMinerRegistered(user), true);
+    }
+
+    function test_QContractDeployment_NoRegistrations() public {
+        vm.startPrank(user);
+
+        uint256 userBalanceBeforeDeployment = user.balance;
+
+        vm.warp(qPayment.endTime() + 1);
+
+        qPayment.deployQContract();
+        
+        Q qContract = Q(payable(qPayment.qContractAddress()));
+        
+
+        assertEq(user.balance, userBalanceBeforeDeployment);
+        assertEq(address(qContract).balance, 0);
+        assertEq(qContract.cycleAccruedFees(0), 0); 
+    }
+
+    function test_QContractDeployment_OneHundredRegistrations() public{
+        address currentUser;        
+        for(uint256 seed = 1; seed < 101; seed++) {
+            currentUser = vm.addr(seed);
+            vm.deal(currentUser, 5 ether);
+
+            vm.prank(currentUser);
+            qPayment.aiRegister{value: 5 ether}("name");
+        }
+
+        vm.warp(qPayment.endTime() + 1);
+
+        vm.prank(user);
+
+        uint256 startGas = gasleft();
+        qPayment.deployQContract();
+        console.log("Q deployment tx gas: ", startGas - gasleft());
+
+        Q qContract = Q(payable(qPayment.qContractAddress()));
+
+        for(uint256 index = 0; index < 100; index++) {
+            address registeredAIMiner = qPayment.aiAddresses(0);
+
+            assertEq(qContract.isAIMinerRegistered(registeredAIMiner), true);
+        }
     }
 
     function testFail_LateAIRegistration() public {
@@ -66,59 +129,5 @@ contract QPaymentTest is Test {
 
         vm.prank(user);
         qPayment.aiRegister{value: feeAmount}("name");
-    }
-
-    function invariant_Registered_Addresses_First_Day_Total_Payment_Balance() public {
-        uint256 totalFees = registrationHandler.totalFees();
-        assertEq(address(qPayment).balance, totalFees);
-    }
-}
-
-contract HandleAIRegistration is Test{
-    QPayment public qpaymentInstance;
-
-    uint256 public totalFees;
-
-    uint192 public actorSeed = 1;
-
-    address internal currentActor;
-
-    modifier useActor() {
-        currentActor = vm.addr(actorSeed);
-
-        vm.startPrank(currentActor);
-        _;
-        vm.stopPrank();
-
-        actorSeed++;
-    }
-
-    constructor(QPayment _qpaymentInstance) {
-        qpaymentInstance = _qpaymentInstance;
-    }
-
-    function callRegistration(uint256 feeAmount, uint256 waitDays) public useActor {
-        waitDays = bound(waitDays, 1, 3 days);
-
-        if(waitDays <= 1 days) {
-            feeAmount = bound(feeAmount, 5 ether, 1e30);
-        } else if(waitDays <= 2 days) { 
-            feeAmount = bound(feeAmount, 6 ether, 1e30);
-        } else {
-            feeAmount = bound(feeAmount, 7 ether, 1e30);
-        }
-
-        vm.deal(currentActor, feeAmount);
-
-        vm.warp(waitDays);
-        qpaymentInstance.aiRegister{value: feeAmount}("name");
-
-        if(waitDays <= 1 days) {
-            totalFees += 5 ether;
-        } else if(waitDays <= 2 days) { 
-            totalFees += 6 ether;
-        } else {
-            totalFees += 7 ether;
-        }
     }
 }
