@@ -98,7 +98,7 @@ contract Q is ERC2771Context {
     /**
      * 0,2% of protocol fees are sent to the NXD DSV contract.
      */
-    address public immutable nxdDSV;
+    address immutable nxdDSV;
 
     /**
      * Q Reward Token contract.
