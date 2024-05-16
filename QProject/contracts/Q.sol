@@ -81,7 +81,7 @@ contract Q is ERC2771Context {
     uint256 public cycleInteractions;
 
     /**
-     * 2% of protocol fees are added to the devFee funds.
+     * 3,8% of protocol fees are added to the devFee funds.
      */
     address immutable devFee;
 
@@ -93,7 +93,12 @@ contract Q is ERC2771Context {
     /**
      * 25% of protocol fees are sent to the buy and burn of Q contract.
      */
-    address immutable qBuyAndBurn;
+    address public immutable qBuyAndBurn;
+
+    /**
+     * 0,2% of protocol fees are sent to the NXD DSV contract.
+     */
+    address public immutable nxdDSV;
 
     /**
      * Q Reward Token contract.
@@ -310,9 +315,11 @@ contract Q is ERC2771Context {
         address forwarder,
         address _devFee,
         address _dxnBuyAndBurn,
+        address _nxdDSV,
         address[] memory AIRegisteredAddresses
     ) ERC2771Context(forwarder) payable {
         devFee = _devFee;
+        nxdDSV = _nxdDSV;
 
         qToken = new QERC20();
         dxnBuyAndBurn = _dxnBuyAndBurn;
@@ -323,9 +330,13 @@ contract Q is ERC2771Context {
 
         currentRegistrationFee = 10 ether;
 
-        cycleAccruedFees[0] = msg.value;
+        uint256 stakerRegistrationFees = msg.value * 75 / 100;
+
+        cycleAccruedFees[0] = stakerRegistrationFees;
 
         setAiMintersAddresses(AIRegisteredAddresses);
+
+        sendViaCall(payable(qBuyAndBurn), msg.value - stakerRegistrationFees);
     }
 
     /**
@@ -376,14 +387,12 @@ contract Q is ERC2771Context {
 
         calculateCycleEntries(entryMultiplier, currentCycleMem, aiMiner, user);
 
-        cycleAccruedFees[currentCycle] += protocolFee * 70 / 100;
-
         lastActiveCycle[user] = currentCycle;
         lastActiveCycle[aiMiner] = currentCycle;
 
         cycleInteractions++;
 
-        distributeProtocolFee(protocolFee);
+        distributeFees(protocolFee, currentCycleMem);
 
         if(msg.value > protocolFee) {
              sendViaCall(payable(msg.sender), msg.value - protocolFee);
@@ -408,7 +417,7 @@ contract Q is ERC2771Context {
             sendViaCall(payable(msg.sender), msg.value - registrationFee);
         }
 
-        cycleAccruedFees[currentStartedCycle] += registrationFee;
+        distributeFees(registrationFee, currentStartedCycle);
         emit NewAIRegistered(aiMiner, name, registrationFee);
     }
 
@@ -465,7 +474,7 @@ contract Q is ERC2771Context {
 
         sendViaCall(payable(user), claimAmount);
         
-        emit FeesClaimed(getCurrentCycle(), user, claimAmount);
+        emit FeesClaimed(currentCycleMem, user, claimAmount);
     }
 
     /**
@@ -560,11 +569,11 @@ contract Q is ERC2771Context {
      * Calculates the multiplier applied to a cycle entry
      * where "miner" is the designated AI miner.
      */
-    function getAIMinerRankMultiplier(address miner) internal view returns(uint256 multiplier) {
+    function getAIMinerRankMultiplier(address miner, uint256 cycle) internal view returns(uint256 multiplier) {
         uint256 lastStartedCycleMem = lastStartedCycle;
         uint256 lastStartedCycleBalance = aiMinerBalancePerCycle[miner][lastStartedCycleMem];
 
-        if(lastStartedCycleBalance != 0) {
+        if(lastStartedCycleBalance != 0 && cycle != 0) {
             multiplier = lastStartedCycleBalance * 2 / lowestCycleBalance[lastStartedCycleMem];
         } else {
             multiplier = 1;
@@ -597,10 +606,13 @@ contract Q is ERC2771Context {
      * Based on the protocol fee, the corresponding allocations are
      * sent to each of the predefined addresses.
      */
-    function distributeProtocolFee(uint256 protocolFee) internal {
-        sendViaCall(payable(devFee), protocolFee * 4 / 100);
-        sendViaCall(payable(dxnBuyAndBurn), protocolFee * 1 / 100);
-        sendViaCall(payable(qBuyAndBurn), protocolFee * 25 / 100);
+    function distributeFees(uint256 fees, uint256 cycle) internal {
+        cycleAccruedFees[cycle] += fees * 70 / 100;
+
+        sendViaCall(payable(nxdDSV), fees * 2 / 1000);
+        sendViaCall(payable(devFee), fees * 38 / 1000);
+        sendViaCall(payable(dxnBuyAndBurn), fees / 100);
+        sendViaCall(payable(qBuyAndBurn), fees * 25 / 100);
     }
 
     /**
@@ -615,12 +627,16 @@ contract Q is ERC2771Context {
         require(currentBalancePlusValue >= 0.1 ether, "Q: Min. threshold balance not met");
 
         aiMinerBalancePerCycle[aiMiner][cycle] += msg.value;
+        cycleAccruedFees[cycle] += msg.value;
                 
+
         uint256 currentCycleLowestBalance = lowestCycleBalance[cycle];
         if(currentBalancePlusValue < currentCycleLowestBalance ||
             currentCycleLowestBalance == 0) {
             lowestCycleBalance[cycle] = currentBalancePlusValue;
         }
+
+        distributeFees(msg.value, cycle);
 
         emit AddFundsForMiner(msg.sender, aiMiner, msg.value, cycle);
     }
@@ -630,7 +646,7 @@ contract Q is ERC2771Context {
      * and of the entrant.
      */
     function calculateCycleEntries(uint256 batchWeight, uint256 cycle, address aiMiner, address user) internal {
-        uint256 multiplier = getAIMinerRankMultiplier(aiMiner);
+        uint256 multiplier = getAIMinerRankMultiplier(aiMiner, cycle);
         if(multiplier > 1) {
             batchWeight *= multiplier;
         }
