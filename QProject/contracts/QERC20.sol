@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
 contract QERC20 is ERC20Permit {
 
-    address public immutable owner;
+    address immutable owner;
 
     constructor() ERC20("Q Token", "Q")
     ERC20Permit("Q Token") {

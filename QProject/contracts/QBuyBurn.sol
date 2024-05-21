@@ -10,7 +10,7 @@ contract QBuyBurn {
 
     uint256 public i_initialTimestamp;
 
-    uint256 public constant i_periodDuration = 1 days;
+    uint256 constant i_periodDuration = 1 days;
 
     uint256 public firstCycleReceivedEther;
 
@@ -18,21 +18,21 @@ contract QBuyBurn {
 
     uint256 public collectedAmount;
 
-    address public immutable Q; 
+    address immutable Q; 
     
-    address public immutable Q_WETH9_Pool;    
+    address immutable Q_WETH9_Pool;    
 
-    address public constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    address constant UNISWAP_V3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
-    address public constant WETH9 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; 
+    address constant WETH9 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; 
 
-    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-    address public constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address constant SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     mapping(uint256 => bool) public feeAlreadyDistributed;
 
-    uint24 public constant poolFee = 10000;
+    uint24 constant poolFee = 10000;
 
     receive() external payable {
         if(block.timestamp < i_initialTimestamp + 1 days) {
