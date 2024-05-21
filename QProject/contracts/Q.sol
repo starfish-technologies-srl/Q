@@ -627,8 +627,6 @@ contract Q is ERC2771Context {
         require(currentBalancePlusValue >= 0.1 ether, "Q: Min. threshold balance not met");
 
         aiMinerBalancePerCycle[aiMiner][cycle] += msg.value;
-        cycleAccruedFees[cycle] += msg.value;
-                
 
         uint256 currentCycleLowestBalance = lowestCycleBalance[cycle];
         if(currentBalancePlusValue < currentCycleLowestBalance ||
