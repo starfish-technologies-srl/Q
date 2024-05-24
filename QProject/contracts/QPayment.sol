@@ -8,7 +8,7 @@ contract QPayment {
     uint256 constant cycleDuration = 1 days;
     uint256[3] feePerCycle = [5 ether, 6 ether, 7 ether]; 
 
-    address constant nxdDSV = 0xE05430D42842C7B757E5633D19ca65350E01aE11;
+    address constant nxdDSV = 0xAB4549F042A27Ab278eceE098Fe9E89a8d6594E9;
     address constant forwarder = 0xB2b5841DBeF766d4b521221732F9B618fCf34A87;
     address constant dxnBuyAndBurn = 0x8ff4596Cdad4F8B1e1eFaC1592a5B7b586BC5eF3;
     address public devFee;
